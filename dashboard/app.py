@@ -60,7 +60,8 @@ h1, h2, h3 { font-weight: 650; }
 """
 st.markdown(CSS, unsafe_allow_html=True)
 
-db.init_db()
+if persist:
+    db.init_db()
 
 st.title("🧭 Career Copilot")
 st.caption("Resume optimization, ATS analysis, company research, and interview prep — run by 18 AI agents.")

@@ -136,12 +136,34 @@ def check_dashboard() -> None:
     tmp, at = _run_dashboard_demo(public=True)
     try:
         check(not at.exception, "dashboard (public, demo): runs without an exception")
-        check(_app_rows(tmp) == [], "dashboard (public, demo): no rows written to the database")
+        # Hosts such as Vercel have a read-only file system, so public mode must not
+        # even create an empty database file.
+        check(not (tmp / "dashboard" / "career_copilot_dashboard.sqlite3").exists(),
+              "dashboard (public, demo): no database file created")
         saved = [p for p in tmp.joinpath("outputs").iterdir() if p.is_dir()]
         check(saved == [], "dashboard (public, demo): no output folders written")
         check(not (tmp / "career_copilot_runs.sqlite3").exists(), "dashboard (public, demo): no pipeline run log written")
+        _check_public_pages(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _check_public_pages(tmp: Path) -> None:
+    from streamlit.testing.v1 import AppTest
+
+    cwd = os.getcwd()
+    os.environ["PUBLIC_DEPLOYMENT"] = "1"
+    os.chdir(tmp)
+    try:
+        for page in sorted((tmp / "dashboard" / "pages").glob("*.py")):
+            at = AppTest.from_file(str(page), default_timeout=60)
+            at.run()
+            check(not at.exception, f"public page {page.stem}: runs without an exception")
+    finally:
+        os.chdir(cwd)
+        os.environ.pop("PUBLIC_DEPLOYMENT", None)
+    check(not (tmp / "dashboard" / "career_copilot_dashboard.sqlite3").exists(),
+          "public pages: no database file created")
 
 
 if __name__ == "__main__":

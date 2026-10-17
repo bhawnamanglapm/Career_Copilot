@@ -12,10 +12,10 @@ from dashboard import db
 from dashboard.privacy import stop_if_public
 
 st.set_page_config(page_title="History — Career Copilot", page_icon="🕘", layout="wide")
-db.init_db()
 
 st.title("🕘 History")
 stop_if_public()
+db.init_db()
 st.caption("Full per-agent execution log across every application.")
 
 apps = db.list_applications()

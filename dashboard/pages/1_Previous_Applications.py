@@ -12,10 +12,10 @@ from dashboard import db
 from dashboard.privacy import stop_if_public
 
 st.set_page_config(page_title="Previous Applications — Career Copilot", page_icon="📂", layout="wide")
-db.init_db()
 
 st.title("📂 Previous Applications")
 stop_if_public()
+db.init_db()
 
 apps = db.list_applications()
 if not apps:

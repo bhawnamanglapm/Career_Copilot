@@ -14,7 +14,8 @@ from dashboard.discovery import discover_agents
 from dashboard.privacy import is_public_deployment
 
 st.set_page_config(page_title="Settings — Career Copilot", page_icon="⚙️", layout="wide")
-db.init_db()
+if not is_public_deployment():
+    db.init_db()
 
 st.title("⚙️ Settings")
 

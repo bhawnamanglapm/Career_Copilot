@@ -96,6 +96,43 @@ it never calls the billed API in the first place. Leaving
 `LIVE_MODE_COST_LIMIT_USD` unset (the default) leaves Live-mode runs
 uncapped, exactly as before this option existed.
 
+### Deploying on Vercel
+
+The repository includes the two files Vercel needs:
+
+- `asgi.py` serves the dashboard as a Python web app (Streamlit's `st.App`,
+  which needs Streamlit 1.66 or later).
+- `vercel.json` sets the time limit to 300 seconds and leaves docs, scripts
+  and CI files out of the bundle.
+
+To deploy, import the GitHub repository in the Vercel dashboard (framework
+preset: Other) and set these environment variables before the first deploy:
+
+| Variable | Value | Needed for |
+|---|---|---|
+| `PUBLIC_DEPLOYMENT` | `1` | Always. Vercel's file system is read-only, and without this visitors would also share history. |
+| `ANTHROPIC_API_KEY` | your key, marked **Sensitive** | Live mode only |
+| `LIVE_MODE_PASSCODE` | a passcode you share privately | Live mode only. Without it, anyone with the link can spend your API credit. |
+| `LIVE_MODE_COST_LIMIT_USD` | e.g. `2.00` | Live mode only |
+
+Leave out `ANTHROPIC_API_KEY` for a Demo-only site.
+
+Known risks on Vercel. These come from Vercel's documentation and have not
+yet been seen in a real deployment of this app:
+
+- **Live runs may be cut off.** Streamlit keeps a WebSocket open for the whole
+  session. Vercel closes it at the function's time limit: 300 seconds on the
+  Hobby plan (up to 800 on Pro). A Live run calls up to 18 agents in turn,
+  some with web search, and no Live run has been timed yet. A run cut off
+  partway has still spent API credit. `LIVE_MODE_COST_LIMIT_USD` caps money,
+  not time.
+- **Sessions can reset.** WebSocket support on Vercel is in beta. If the
+  browser reconnects to a different server instance, the visitor's results
+  and download buttons are gone and they must run again.
+
+If either becomes a problem, Streamlit Community Cloud runs the same app
+(`dashboard/app.py`) on a long-running server without these limits.
+
 ## What's dynamic vs. what's fixed
 
 **Dynamic — no code change needed when agents change:** `dashboard/discovery.py`
