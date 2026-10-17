@@ -132,7 +132,17 @@ yet been seen in a real deployment of this app:
   not time.
 - **Sessions can reset.** WebSocket support on Vercel is in beta. If the
   browser reconnects to a different server instance, the visitor's results
-  and download buttons are gone and they must run again.
+  and download links are gone and they must run again.
+
+Downloads already work across instances. In public mode each file is packed
+into its download link, because `st.download_button` keeps files in one
+server's memory and failed about half the time on Vercel.
+
+Checked on the live demo (https://career-copilot-gold-six.vercel.app) on
+2026-10-18, in Demo mode, in a headless browser. Three visitors each ran the
+demo and downloaded all 24 files intact. A fresh visitor saw only the
+"History is turned off" note on all six history pages. Live mode has not
+been run on Vercel.
 
 If either becomes a problem, Streamlit Community Cloud runs the same app
 (`dashboard/app.py`) on a long-running server without these limits.
