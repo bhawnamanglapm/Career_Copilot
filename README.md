@@ -11,6 +11,7 @@
 | | |
 |---|---|
 | **What it is** | A working prototype: a Python multi-agent pipeline with a Streamlit dashboard. It runs on your own computer. |
+| **Try it** | **[career-copilot-gold-six.vercel.app](https://career-copilot-gold-six.vercel.app)**: Demo mode, no sign-up. It replays the fictional sample and saves nothing about you. |
 | **Status** | Demo mode runs end to end without an API key. Live mode, which calls Anthropic's API with your own key, exists in the code but has **no recorded runs** in this repository and was not run in the 2026-10-18 review. |
 | **Evidence** | Each agent has one sample output, all for the same fictional candidate. An offline smoke test runs on every push in GitHub Actions. |
 | **Not yet shown** | Accuracy on real resumes, time saved, or any user testing. |
@@ -59,7 +60,8 @@ These are the outputs of one sample. They show the format and the reasoning, not
 | All 18 sample outputs match their agents' data formats | Pass | [`scripts/smoke_test.py`](scripts/smoke_test.py), in CI |
 | Full pipeline runs in Demo mode | Pass: 15 specialists completed, 0 failed, verdict produced | Smoke test, in CI |
 | Demo mode runs the sample, not what a visitor uploads | Pass | Smoke test, and in a browser on 2026-10-18 |
-| Public mode stores nothing about a visitor | Pass: 0 database rows, 0 files; a second visitor sees no history | Smoke test, and in a browser |
+| Public mode stores nothing about a visitor | Pass: no database file, 0 files; a second visitor sees no history | Smoke test, and in a browser |
+| Hosted demo on Vercel | Pass: demo run, all 24 downloads, history pages off | Headless browser on the live link, 2026-10-18 (Demo mode only) |
 | Live mode against the real API | **Not checked.** No key was used; no live-run records are in the repo. The default model ID (`claude-sonnet-5`) is unconfirmed. | — |
 | Quality of agent output on real resumes | **Not measured.** An evaluation harness exists ([`career_copilot/evals/`](career_copilot/evals/)) with no recorded results. | — |
 | Users | **None recorded** | — |
@@ -74,7 +76,7 @@ streamlit run dashboard/app.py          # opens at http://localhost:8501
 - **Demo mode** (default) needs no key. It replays the saved sample results for the fictional candidate and ignores uploads.
 - **Live mode** analyses your own resume. Set `ANTHROPIC_API_KEY` first. Each run makes billed API calls, including web search.
 - **Sharing the app with others?** Set `PUBLIC_DEPLOYMENT=1`. Without it, every visitor can see every other visitor's resume and results. Also consider `LIVE_MODE_PASSCODE` and `LIVE_MODE_COST_LIMIT_USD`. Details: [dashboard/README.md](dashboard/README.md).
-- **Hosting on Vercel:** the repo includes `asgi.py` and `vercel.json`. Steps, settings and known limits (Live runs may be cut off after 5 minutes on the free plan) are in [dashboard/README.md](dashboard/README.md#deploying-on-vercel).
+- **Hosting on Vercel:** the repo includes `asgi.py` and `vercel.json`, and the demo link above runs on Vercel. Steps, settings and known limits (Live runs may be cut off after 5 minutes on the free plan) are in [dashboard/README.md](dashboard/README.md#deploying-on-vercel).
 - **Offline checks:** `python scripts/smoke_test.py`.
 
 ## Limits
