@@ -12,9 +12,12 @@ dashboard/privacy.py).
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
+import html
 import io
+import mimetypes
 import os
 import sys
 import time
@@ -47,6 +50,16 @@ DEFAULT_GOAL = "I want a tailored resume, a gap analysis, and interview prep."
 
 public = is_public_deployment()
 persist = not public
+
+
+def _data_link(label: str, data: bytes, file_name: str, primary: bool = False) -> str:
+    mime = mimetypes.guess_type(file_name)[0] or "text/plain"
+    style = "font-weight:600;" if primary else ""
+    return (
+        f'<a href="data:{mime};base64,{base64.b64encode(data).decode("ascii")}" '
+        f'download="{html.escape(file_name)}" style="{style}">{html.escape(label)}</a>'
+    )
+
 
 CSS = """
 <style>
@@ -404,6 +417,9 @@ if not persist and st.session_state.get("public_artifacts"):
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for file_name, content in session_artifacts.values():
             zf.writestr(file_name, content)
-    st.download_button("⬇ Download all (.zip)", data=zip_buffer.getvalue(), file_name="career_copilot_results.zip", type="primary")
-    for key, (file_name, content) in session_artifacts.items():
-        st.download_button(file_name, data=content.encode("utf-8"), file_name=file_name, key=f"dl_{key}")
+    # Each file is packed into its link, so the browser saves it without another
+    # server request. st.download_button keeps files in one server's memory,
+    # which fails on hosts that spread requests over several instances (Vercel).
+    links = [_data_link("⬇ Download all (.zip)", zip_buffer.getvalue(), "career_copilot_results.zip", primary=True)]
+    links += [_data_link(file_name, content.encode("utf-8"), file_name) for file_name, content in session_artifacts.values()]
+    st.markdown("<br>".join(links), unsafe_allow_html=True)
