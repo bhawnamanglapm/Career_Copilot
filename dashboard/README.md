@@ -105,8 +105,12 @@ The repository includes the two files Vercel needs:
 - `vercel.json` sets the time limit to 300 seconds and leaves docs, scripts
   and CI files out of the bundle.
 
-To deploy, import the GitHub repository in the Vercel dashboard (framework
-preset: Other) and set these environment variables before the first deploy:
+`vercel.json` also selects Vercel's generic **Python** framework preset. With
+the "Other" preset the build fails, because Vercel then looks for functions
+only in an `api/` folder.
+
+To deploy, import the GitHub repository in the Vercel dashboard and set these
+environment variables before the first deploy:
 
 | Variable | Value | Needed for |
 |---|---|---|
