@@ -1,40 +1,99 @@
 # Career Copilot
 
-A multi-agent AI system that turns a resume + job description + company into a
-truthful, evidence-based job application package: gap analysis, ATS-optimized
-resume rewrites, interview prep, LinkedIn optimization, and a final recruiter-style
-report — built from 18 specialized agents orchestrated by a Planner/Supervisor/Critic
-layer.
+**An AI assistant for job applications. You give it a resume and a job posting. Eighteen AI agents, each with one job, turn them into a tailored application package: a match analysis, ATS check, rewritten resume versions, company research, interview prep and outreach drafts, followed by a final ready / not-ready verdict.**
 
-Every agent follows the same contract: **structured JSON in, structured JSON out,
-never fabricate.** Agents are built and verified one at a time.
+![Demo mode: a banner says it replays saved results for one fictional candidate; the execution graph shows all 15 specialist agents completed](docs/images/demo-run.png)
 
-## Status
+*The dashboard in Demo mode. Every agent node turned green, meaning it finished.*
 
-| # | Agent | Status |
-|---|-------|--------|
-| 1 | Resume Analysis Agent | ✅ Built, sample-verified |
-| 2 | JD Intelligence Agent | ✅ Built, sample-verified |
-| 3 | Company Intelligence Agent | ✅ Built, sample-verified |
-| 4 | ATS Optimization Agent | ✅ Built, sample-verified |
-| 5 | Resume Rewrite Agent | ✅ Built, sample-verified |
-| 6 | Gap Analysis Agent | ✅ Built, sample-verified |
-| 7 | Skill Evidence Agent | ✅ Built, sample-verified |
-| 8 | Portfolio Recommendation Agent | ✅ Built, sample-verified |
-| 9 | Learning & Certification Agent | ✅ Built, sample-verified |
-| 10 | Recruiter Simulation Agent | ✅ Built, sample-verified |
-| 11 | Interview Coach Agent | ✅ Built, sample-verified |
-| 12 | LinkedIn Optimization Agent | ✅ Built, sample-verified |
-| 13 | Application Assets Agent | ✅ Built, sample-verified |
-| 14 | Career Strategy Agent | ✅ Built, sample-verified |
-| 15 | Final Report Agent | ✅ Built, sample-verified |
-| 16 | Planner Agent | ✅ Built, sample-verified |
-| 17 | Critic Agent | ✅ Built, sample-verified |
-| 18 | Supervisor Agent | ✅ Built, sample-verified |
+## At a glance
 
-**All 18 agents built and verified.**
+| | |
+|---|---|
+| **What it is** | A working prototype: a Python multi-agent pipeline with a Streamlit dashboard. It runs on your own computer. |
+| **Status** | Demo mode runs end to end without an API key. Live mode, which calls Anthropic's API with your own key, exists in the code but has **no recorded runs** in this repository and was not run in the 2026-10-18 review. |
+| **Evidence** | Each agent has one sample output, all for the same fictional candidate. An offline smoke test runs on every push in GitHub Actions. |
+| **Not yet shown** | Accuracy on real resumes, time saved, or any user testing. |
+| **Built with** | Python, the Anthropic SDK, Pydantic, Streamlit, Plotly, SQLite. Built with Claude Code, an AI coding assistant. |
 
-## Architecture
+## Who did what
+
+- **Bhawna Mangla** (GitHub [bhawnamanglapm](https://github.com/bhawnamanglapm); earlier commits appear as Bhavu211): product owner. She directed the build, reviewed and merged each pull request, and added the dev container.
+- **Claude Code**: wrote the agents, pipeline, dashboard, sample outputs and docs under her direction (27 of 34 commits).
+
+## The problem
+
+A serious job application takes hours of scattered work. You have to:
+- work out what the posting really screens for;
+- research the company;
+- judge your fit honestly;
+- tailor a resume without breaking applicant-tracking (ATS) parsing;
+- prepare interview answers;
+- draft outreach.
+
+Generic AI chat can do each step, but it tends to invent achievements and skills to make a resume look better. Career Copilot is built around the opposite rule: **every claim must trace back to the resume, the posting, or a cited source.**
+
+## How it works
+
+1. **15 specialist agents** each do one job, for example: resume analysis, job-posting analysis, company research, ATS optimisation, resume rewrite, gap analysis, skill evidence, recruiter simulation, interview coach, LinkedIn, cover letter and outreach, learning plan, career strategy, and a final report.
+2. **A Planner** picks which specialists a request needs and runs them in dependency order.
+3. **A Critic** reviews the specialists' real outputs for unsupported claims and inconsistencies.
+4. **A Supervisor** checks the plan against what actually ran, checks that each serious Critic finding has a specific fix, and gives the final verdict.
+
+Each agent must return structured data in a fixed format (not free text), and its instructions forbid inventing facts. Agents that research the real world, such as company research, search the web first and must cite sources.
+
+## What the sample run shows
+
+All sample outputs use one **fictional** candidate, Ananya Sharma, applying for a Senior Product Manager, Risk & Fraud job at Razorpay ([sample resume](samples/sample_resume.txt), [sample job description](samples/sample_jd.txt)).
+
+- The ATS agent scored the resume **82**. The Supervisor's verdict was **passed with notes, ready to send**.
+- The Critic caught a real inconsistency: the learning-plan agent claimed "~45–55 hours" in total, but its own line items add up to 30–44 hours ([critic output](outputs/critic_sample_output.md)).
+- The company-research sample cites public news sources about Razorpay. Those sources were not re-checked in this review.
+
+These are the outputs of one sample. They show the format and the reasoning, not how accurate the system is on real resumes.
+
+## What has been checked
+
+| Check | Result | How |
+|---|---|---|
+| All 18 sample outputs match their agents' data formats | Pass | [`scripts/smoke_test.py`](scripts/smoke_test.py), in CI |
+| Full pipeline runs in Demo mode | Pass: 15 specialists completed, 0 failed, verdict produced | Smoke test, in CI |
+| Demo mode runs the sample, not what a visitor uploads | Pass | Smoke test, and in a browser on 2026-10-18 |
+| Public mode stores nothing about a visitor | Pass: 0 database rows, 0 files; a second visitor sees no history | Smoke test, and in a browser |
+| Live mode against the real API | **Not checked.** No key was used; no live-run records are in the repo. The default model ID (`claude-sonnet-5`) is unconfirmed. | — |
+| Quality of agent output on real resumes | **Not measured.** An evaluation harness exists ([`career_copilot/evals/`](career_copilot/evals/)) with no recorded results. | — |
+| Users | **None recorded** | — |
+
+## Run it yourself
+
+```bash
+pip install -r requirements.txt
+streamlit run dashboard/app.py          # opens at http://localhost:8501
+```
+
+- **Demo mode** (default) needs no key. It replays the saved sample results for the fictional candidate and ignores uploads.
+- **Live mode** analyses your own resume. Set `ANTHROPIC_API_KEY` first. Each run makes billed API calls, including web search.
+- **Sharing the app with others?** Set `PUBLIC_DEPLOYMENT=1`. Without it, every visitor can see every other visitor's resume and results. Also consider `LIVE_MODE_PASSCODE` and `LIVE_MODE_COST_LIMIT_USD`. Details: [dashboard/README.md](dashboard/README.md).
+- **Offline checks:** `python scripts/smoke_test.py`.
+
+## Limits
+
+- No logins: history is either shared by everyone using one server, or switched off with `PUBLIC_DEPLOYMENT=1`.
+- One fictional sample is the only worked example. There are no real-resume results.
+- The presentation deck and video in [`docs/presentation/`](docs/presentation/) predate this review. See the note in that folder before sharing them.
+
+## Documentation
+
+- [`docs/product/`](docs/product/): PRD, user stories, roadmap, risks, competitive analysis.
+- [`docs/agents/`](docs/agents/): one page per agent.
+- [`docs/portfolio/`](docs/portfolio/): problem statement, architecture, lessons learned, screenshots of each agent's report.
+- [`dashboard/README.md`](dashboard/README.md): the dashboard, its settings and storage.
+
+---
+
+## Technical details
+
+### Architecture
 
 ```
 career_copilot/
@@ -73,27 +132,27 @@ career_copilot/
   pipeline.py          # run_pipeline() — wires all 18 agents together in real dependency order
   cli.py              # run a single agent from the command line (docs-only agents)
 samples/
-  sample_resume.txt   # fixture used to verify agents 1, 4, 5, 6, 7, 10, 11, 12, 13, 14
-  sample_jd.txt        # fixture used to verify agents 2, 4, 5, 6, 7, 10, 11, 12, 13 (paired with sample_resume.txt's PM/fintech profile)
+  sample_resume.txt   # fixture used for agents 1, 4, 5, 6, 7, 10, 11, 12, 13, 14
+  sample_jd.txt        # fixture used for agents 2, 4, 5, 6, 7, 10, 11, 12, 13 (paired with sample_resume.txt's PM/fintech profile)
 outputs/
-  resume_analysis_sample_output.{json,md}     # verified sample output, agent 1
-  jd_intelligence_sample_output.{json,md}      # verified sample output, agent 2
-  company_intelligence_sample_output.{json,md} # verified sample output, agent 3
-  ats_optimization_sample_output.{json,md}     # verified sample output, agent 4
-  resume_rewrite_sample_output.{json,md}       # verified sample output, agent 5
-  gap_analysis_sample_output.{json,md}         # verified sample output, agent 6
-  skill_evidence_sample_output.{json,md}       # verified sample output, agent 7
-  portfolio_recommendation_sample_output.{json,md} # verified sample output, agent 8
-  learning_certification_sample_output.{json,md}   # verified sample output, agent 9
-  recruiter_simulation_sample_output.{json,md}     # verified sample output, agent 10
-  interview_coach_sample_output.{json,md}          # verified sample output, agent 11
-  linkedin_optimization_sample_output.{json,md}    # verified sample output, agent 12
-  application_assets_sample_output.{json,md}       # verified sample output, agent 13
-  career_strategy_sample_output.{json,md}          # verified sample output, agent 14
-  final_report_sample_output.{json,md}             # verified sample output, agent 15 — the consolidated dashboard
-  planner_sample_output.{json,md}                  # verified sample output, agent 16
-  critic_sample_output.{json,md}                   # verified sample output, agent 17 — a real review of agents 1-15
-  supervisor_sample_output.{json,md}               # verified sample output, agent 18 — the final go/no-go verdict
+  resume_analysis_sample_output.{json,md}     # sample output, agent 1
+  jd_intelligence_sample_output.{json,md}      # sample output, agent 2
+  company_intelligence_sample_output.{json,md} # sample output, agent 3
+  ats_optimization_sample_output.{json,md}     # sample output, agent 4
+  resume_rewrite_sample_output.{json,md}       # sample output, agent 5
+  gap_analysis_sample_output.{json,md}         # sample output, agent 6
+  skill_evidence_sample_output.{json,md}       # sample output, agent 7
+  portfolio_recommendation_sample_output.{json,md} # sample output, agent 8
+  learning_certification_sample_output.{json,md}   # sample output, agent 9
+  recruiter_simulation_sample_output.{json,md}     # sample output, agent 10
+  interview_coach_sample_output.{json,md}          # sample output, agent 11
+  linkedin_optimization_sample_output.{json,md}    # sample output, agent 12
+  application_assets_sample_output.{json,md}       # sample output, agent 13
+  career_strategy_sample_output.{json,md}          # sample output, agent 14
+  final_report_sample_output.{json,md}             # sample output, agent 15 — the consolidated dashboard
+  planner_sample_output.{json,md}                  # sample output, agent 16
+  critic_sample_output.{json,md}                   # sample output, agent 17 — its review of agents 1-15
+  supervisor_sample_output.{json,md}               # sample output, agent 18 — the final go/no-go verdict
 docs/
   agents/           # docs/agents/<agent_id>.md — purpose, inputs, outputs, limitations, future work, per agent
   product/          # PRD.md, USER_STORIES.md, ROADMAP.md, RISKS.md, COMPETITIVE_ANALYSIS.md
@@ -108,7 +167,7 @@ Every agent:
   recruiter, ATS expert, etc.) with an explicit non-fabrication rule.
 - Implements `build_user_prompt(data) -> str`.
 
-## Running the full pipeline
+### Running the full pipeline
 
 `career_copilot/pipeline.py` is the real top-to-bottom entry point all 18
 agents were built to compose into. `run_pipeline()` runs Planner Agent to
@@ -132,12 +191,11 @@ result = run_pipeline(PipelineInput(
 print(result.supervisor_output.quality_gate, result.supervisor_output.final_deliverable_ready)
 ```
 
-This wiring was dry-run-verified (dependency order, inter-agent field
-mapping) by replaying the project's own validated `outputs/*_sample_output.json`
-fixtures through a monkeypatched `LLMClient` — no `ANTHROPIC_API_KEY` needed
-to confirm the plumbing is correct; a live run needs one.
+The wiring (dependency order, inter-agent field mapping) is checked offline
+by replaying the `outputs/*_sample_output.json` samples through
+`DemoLLMClient` in `scripts/smoke_test.py`. A live run needs `ANTHROPIC_API_KEY`.
 
-### Persisting every run
+#### Persisting every run
 
 Pass a `RunLogger` to persist each run's date, company, JD snippet, resume
 version, ATS score, missing skills, interview question count, and the full
@@ -152,7 +210,7 @@ for run in logger.query_runs(company_name="Razorpay"):
     print(run.run_at, run.ats_score, run.quality_gate)
 ```
 
-### Evaluating an agent
+#### Evaluating an agent
 
 `career_copilot/evals/` scaffolds dev-time validation: write a suite of
 easy/normal/edge/bad-input/missing-information cases per agent, run them
@@ -174,13 +232,7 @@ report = run_eval_suite("resume_analysis", ResumeAnalysisAgent(), cases)
 print(report.mean_overall_score, report.hallucination_count, report.total_cost_usd)
 ```
 
-## Documentation
-
-- [`docs/agents/`](docs/agents/) — one page per agent: purpose, problem solved, inputs, outputs, workflow, limitations, future improvements.
-- [`docs/product/`](docs/product/) — PRD, user stories, roadmap, risks, competitive analysis.
-- [`docs/portfolio/`](docs/portfolio/) — problem statement, architecture diagram, lessons learned, and screenshots of every agent's HTML report.
-
-## Running a single agent
+### Running a single agent
 
 ```bash
 pip install -r requirements.txt
@@ -188,10 +240,10 @@ export ANTHROPIC_API_KEY=sk-ant-...
 python -m career_copilot.cli resume_analysis samples/sample_resume.txt
 ```
 
-Without an API key, see `outputs/*_sample_output.json` for a verified example of
+Without an API key, see `outputs/*_sample_output.json` for a sample of
 each agent's output shape.
 
-## Design decisions
+### Design decisions
 
 - **Language/runtime:** Python + the `anthropic` SDK + Pydantic v2 for schema
   validation — chosen for clean structured I/O between agents and minimal
@@ -199,13 +251,14 @@ each agent's output shape.
 - **Structured output:** every agent forces a single tool call matching its
   output schema (`core/llm_client.py:run_structured`), so downstream agents
   never depend on parsing prose.
-- **Verification:** each agent ships with a fixture input and a sample output
-  reviewed before the next agent is built (see Status table above).
+- **Samples:** each agent ships with a fixture input and a sample output,
+  written and checked against the agent's schema before the next agent was
+  built. `scripts/smoke_test.py` re-checks every sample against its schema.
 - **Research-grounded agents:** agents whose subject is the real world rather
   than a document the user provided (e.g. Company Intelligence) run in two
   phases — a research call with Anthropic's server-side `web_search` tool,
-  then a non-searching structuring call — so fabrication risk on real facts
-  stays low and every claim can be traced to a cited source.
+  then a non-searching structuring call — designed to reduce fabrication on
+  real-world facts and tie each claim to a cited source (not yet measured).
 - **Extraction vs. synthesis agents:** agents 1-7 take raw source text
   (resume/JD) and re-derive their own findings independently — this keeps
   them testable in isolation and lets a later Supervisor/Critic agent
@@ -221,8 +274,8 @@ each agent's output shape.
   agents*. Their shared ground truth is `core/registry.py`'s `AGENT_REGISTRY`,
   a machine-readable catalog of every agent's required/optional inputs and
   real dependencies, built directly from how each agent is implemented. This
-  makes it structurally impossible for the orchestration layer to invent an
-  agent that doesn't exist or a dependency edge that isn't real — Planner
+  lets the orchestration layer's output be checked against agents and
+  dependency edges that really exist — Planner
   Agent's sample plan had every `agent_id` and `depends_on` reference
   programmatically checked against the registry before being accepted.
   Supervisor Agent (18) is the system's top-level entry point: it cross-checks
