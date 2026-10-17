@@ -19,10 +19,13 @@ streamlit run dashboard/app.py
 
 Open the URL Streamlit prints (default `http://localhost:8501`).
 
-- **Demo mode** (default, no setup needed): replays this project's own
-  hand-verified `outputs/*_sample_output.json` fixtures instead of calling
-  the live API — lets you exercise the full dashboard, execution graph, and
-  history/analytics pages with zero cost and no key.
+- **Demo mode** (default, no setup needed): runs the bundled fictional
+  sample (`samples/sample_resume.txt` and `samples/sample_jd.txt`) through
+  the saved `outputs/*_sample_output.json` results instead of calling the
+  live API. It does not read uploads, so the upload fields are hidden; every
+  demo run shows the same scores and verdict and is saved under the sample
+  candidate's name. It lets you exercise the full dashboard, execution
+  graph, and history/analytics pages with zero cost and no key.
 - **Live mode**: set `ANTHROPIC_API_KEY` before starting Streamlit to unlock
   it — every agent call becomes a real API call.
 
@@ -30,6 +33,25 @@ Open the URL Streamlit prints (default `http://localhost:8501`).
 export ANTHROPIC_API_KEY=sk-ant-...
 streamlit run dashboard/app.py
 ```
+
+### Before sharing the URL: turn on `PUBLIC_DEPLOYMENT`
+
+By default every run is saved to `outputs/` and SQLite, and the history
+pages (Previous Applications, Companies, Resume Versions, Outputs, History,
+Analytics) show every saved run. There are no accounts, so on a shared
+server any visitor could open any other visitor's resume and results.
+
+On any deployment other people can reach, set:
+
+```bash
+export PUBLIC_DEPLOYMENT=1
+```
+
+When it is on, runs are never written to disk or the database, the history
+pages show a notice instead of data, and each visitor downloads their own
+files (one by one or as a zip) from the New Analysis page. The files live
+only in that visitor's browser session. `scripts/smoke_test.py` checks that
+a public-mode run writes nothing.
 
 ### Gating Live mode behind a passcode
 
@@ -103,6 +125,7 @@ dashboard/
   db.py                       # SQLite: applications, companies, resume_versions, execution_logs
   file_parsing.py             # PDF/DOCX/TXT -> text
   output_manager.py           # outputs/{Company}/{Job_Title}/{timestamp}/ folder + per-artifact files
+  privacy.py                  # PUBLIC_DEPLOYMENT switch: no saving, history pages off
   graph_layout.py             # Topological layered layout for the execution DAG
   components/
     cards.py                  # Summary metric cards
@@ -176,5 +199,6 @@ outputs/
   (`career_copilot/core/pricing.py`); Demo-mode token counts are a rough
   chars/4 approximation, always labeled "(demo, approximate)."
 - The dashboard is a single-process local app (`streamlit run`), not a
-  deployed multi-tenant service — SQLite is appropriate at this scale but
-  would need to change for concurrent multi-user production use.
+  deployed multi-tenant service. There are no user accounts: history is
+  either shared by everyone (default) or turned off (`PUBLIC_DEPLOYMENT=1`).
+  Per-user history would need logins and per-user storage.
