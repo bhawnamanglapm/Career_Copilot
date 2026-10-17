@@ -14,14 +14,18 @@ Run from the repository root:  python scripts/smoke_test.py
 
 from __future__ import annotations
 
+import base64
 import importlib
+import io
 import json
 import os
 import pkgutil
+import re
 import shutil
 import sqlite3
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -143,9 +147,27 @@ def check_dashboard() -> None:
         saved = [p for p in tmp.joinpath("outputs").iterdir() if p.is_dir()]
         check(saved == [], "dashboard (public, demo): no output folders written")
         check(not (tmp / "career_copilot_runs.sqlite3").exists(), "dashboard (public, demo): no pipeline run log written")
+        _check_public_downloads(at)
         _check_public_pages(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _check_public_downloads(at) -> None:
+    """Public downloads must be self-contained links: st.download_button files
+    live in one server's memory, which fails on multi-instance hosts (Vercel)."""
+    check(not at.get("download_button"), "dashboard (public, demo): no server-side download buttons")
+    match = next(
+        (re.search(r'href="data:[^;"]+;base64,([^"]+)" [^>]*download="career_copilot_results\.zip"', m.value)
+         for m in at.markdown if "career_copilot_results.zip" in m.value),
+        None,
+    )
+    names: list[str] = []
+    if match:
+        with zipfile.ZipFile(io.BytesIO(base64.b64decode(match.group(1)))) as zf:
+            names = zf.namelist()
+    check("original_resume.txt" in names and len(names) > 10,
+          f"dashboard (public, demo): zip packed into its link ({len(names)} files)")
 
 
 def _check_public_pages(tmp: Path) -> None:
