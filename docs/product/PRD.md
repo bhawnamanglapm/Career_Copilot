@@ -2,7 +2,7 @@
 
 ## Problem statement
 
-Job seekers preparing a serious application do 6-8 hours of fragmented work per role: re-reading the JD for what actually matters, guessing what the company cares about, tailoring a resume without breaking ATS parsing, figuring out what they're weak on, building a story for interviews, and writing 4-5 pieces of outreach copy — each done from scratch, with no consistent quality bar, and no way to know if any of it is actually good until a recruiter responds (or doesn't).
+Job seekers preparing a serious application spend hours of fragmented work on each role (an estimate; not yet measured): re-reading the JD for what actually matters, guessing what the company cares about, tailoring a resume without breaking ATS parsing, figuring out what they're weak on, building a story for interviews, and writing 4-5 pieces of outreach copy — each done from scratch, with no consistent quality bar, and no way to know if any of it is actually good until a recruiter responds (or doesn't).
 
 Generic LLM chat ("help me with my resume") produces plausible-sounding output that is frequently wrong in ways the candidate can't detect: invented achievements, inflated scope, keyword-stuffed resumes that read as robotic to a human, interview answers built on facts not in the candidate's actual history. The failure mode isn't "unhelpful" — it's "confidently wrong in a way that damages the candidate's credibility in an interview."
 
@@ -50,7 +50,7 @@ Plus `pipeline.py`, the real end-to-end entry point wiring all 18 together in de
 
 ## Success metrics
 
-See `docs/product/ROADMAP.md` and `docs/evals/` (Phase 7 scaffold) for the concrete metrics this system should eventually be measured against: hallucination rate, hard-fact accuracy, completeness, cost per full run, and — once there are real users — time saved and outcome correlation (interview/offer rate vs. baseline).
+See `docs/product/ROADMAP.md` and `career_copilot/evals/` (the eval harness scaffold; no eval results are recorded yet) for the concrete metrics this system should eventually be measured against: hallucination rate, hard-fact accuracy, completeness, cost per full run, and — once there are real users — time saved and outcome correlation (interview/offer rate vs. baseline).
 
 ## Open questions
 

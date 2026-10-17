@@ -8,11 +8,13 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from dashboard import db
+from dashboard.privacy import stop_if_public
 
 st.set_page_config(page_title="Outputs — Career Copilot", page_icon="📦", layout="wide")
 db.init_db()
 
 st.title("📦 Outputs")
+stop_if_public()
 
 apps = [a for a in db.list_applications() if a["output_folder"]]
 if not apps:

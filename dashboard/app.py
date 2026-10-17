@@ -3,15 +3,22 @@
 Upload a resume + JD, enter company/role, run the real 18-agent pipeline,
 and watch it execute live. Every other sidebar page reads from the same
 SQLite database this page writes to.
+
+Demo mode never reads uploads: it runs the bundled fictional sample through
+the replayed sample outputs, so what gets shown and saved matches what was
+actually analysed. With PUBLIC_DEPLOYMENT=1 nothing is saved at all (see
+dashboard/privacy.py).
 """
 
 from __future__ import annotations
 
 import hashlib
 import hmac
+import io
 import os
 import sys
 import time
+import zipfile
 from pathlib import Path
 
 import streamlit as st
@@ -27,9 +34,19 @@ from dashboard.components.cards import render_summary_cards
 from dashboard.components.execution_graph import STATUS_COLORS, build_execution_graph_figure
 from dashboard.discovery import discover_agents
 from dashboard.file_parsing import UnsupportedFileType, extract_text
-from dashboard.output_manager import create_output_folder, save_application_outputs
+from dashboard.output_manager import build_application_artifacts, create_output_folder, save_application_outputs
+from dashboard.privacy import is_public_deployment
 
 st.set_page_config(page_title="Career Copilot", page_icon="🧭", layout="wide")
+
+SAMPLE_DIR = Path(__file__).resolve().parent.parent / "samples"
+DEMO_CANDIDATE = "Ananya Sharma (fictional sample)"
+DEMO_COMPANY = "Razorpay"
+DEMO_JOB_TITLE = "Senior Product Manager — Risk & Fraud"
+DEFAULT_GOAL = "I want a tailored resume, a gap analysis, and interview prep."
+
+public = is_public_deployment()
+persist = not public
 
 CSS = """
 <style>
@@ -46,9 +63,12 @@ st.markdown(CSS, unsafe_allow_html=True)
 db.init_db()
 
 st.title("🧭 Career Copilot")
-st.caption("Resume optimization, ATS analysis, company research, and interview prep — orchestrated by 18 verified AI agents.")
+st.caption("Resume optimization, ATS analysis, company research, and interview prep — run by 18 AI agents.")
 
-render_summary_cards()
+if public:
+    st.caption("🔒 Public deployment: nothing you upload or generate is saved on the server.")
+else:
+    render_summary_cards()
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -59,28 +79,6 @@ st.header("New Analysis")
 
 agents = discover_agents()
 specialist_agents = [a for a in agents if a.category != "orchestration"]
-
-col_left, col_right = st.columns(2)
-
-with col_left:
-    resume_file = st.file_uploader("Resume (PDF / DOCX / TXT)", type=["pdf", "docx", "txt"])
-    jd_mode = st.radio("Job Description input", ["Upload file", "Paste text"], horizontal=True)
-    jd_file = None
-    jd_pasted = ""
-    if jd_mode == "Upload file":
-        jd_file = st.file_uploader("Job Description (PDF / DOCX / TXT)", type=["pdf", "docx", "txt"], key="jd_upload")
-    else:
-        jd_pasted = st.text_area("Paste job description text", height=180)
-
-with col_right:
-    candidate_name = st.text_input("Candidate name", value="")
-    company_name = st.text_input("Company name")
-    job_title = st.text_input("Job title")
-    years_of_experience = st.text_input("Years of experience (optional)")
-    user_goal = st.text_area(
-        "What do you want from this run?", height=90,
-        value="I want a tailored resume, a gap analysis, and interview prep.",
-    )
 
 has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
 live_passcode = os.environ.get("LIVE_MODE_PASSCODE")  # optional — unset means Live mode is ungated
@@ -95,10 +93,46 @@ if _cost_cap_raw:
 
 mode = st.radio(
     "Execution mode",
-    ["Demo (replays verified sample outputs, no API key needed)", "Live (calls the real Anthropic API)"],
+    ["Demo (replays saved sample results for a fictional candidate, no API key needed)", "Live (calls the real Anthropic API on your resume)"],
     index=0 if not has_key else 1,
     horizontal=True,
 )
+demo = mode.startswith("Demo")
+
+resume_file = None
+jd_file = None
+jd_pasted = ""
+candidate_name = company_name = job_title = years_of_experience = ""
+user_goal = DEFAULT_GOAL
+
+if demo:
+    st.info(
+        "**Demo mode does not read a resume or job description.** It replays results saved during the build "
+        f"for one fictional candidate, Ananya Sharma, applying to the sample job ({DEMO_JOB_TITLE} at "
+        f"{DEMO_COMPANY}). Every demo run shows the same scores and verdict. To analyse your own resume, use Live mode."
+    )
+    with st.expander("See the sample resume and job description"):
+        st.text((SAMPLE_DIR / "sample_resume.txt").read_text(encoding="utf-8"))
+        st.divider()
+        st.text((SAMPLE_DIR / "sample_jd.txt").read_text(encoding="utf-8"))
+else:
+    col_left, col_right = st.columns(2)
+
+    with col_left:
+        resume_file = st.file_uploader("Resume (PDF / DOCX / TXT)", type=["pdf", "docx", "txt"])
+        jd_mode = st.radio("Job Description input", ["Upload file", "Paste text"], horizontal=True)
+        if jd_mode == "Upload file":
+            jd_file = st.file_uploader("Job Description (PDF / DOCX / TXT)", type=["pdf", "docx", "txt"], key="jd_upload")
+        else:
+            jd_pasted = st.text_area("Paste job description text", height=180)
+
+    with col_right:
+        candidate_name = st.text_input("Candidate name", value="")
+        company_name = st.text_input("Company name")
+        job_title = st.text_input("Job title")
+        years_of_experience = st.text_input("Years of experience (optional)")
+        user_goal = st.text_area("What do you want from this run?", height=90, value=DEFAULT_GOAL)
+
 if mode.startswith("Live") and not has_key:
     st.warning("ANTHROPIC_API_KEY is not set in this environment — live mode will fail. Set it or use Demo mode.")
 if mode.startswith("Live") and live_cost_limit_usd is not None:
@@ -122,7 +156,7 @@ if resume_file or jd_file:
 
 run_clicked = st.button(
     "▶ Run Pipeline", type="primary",
-    disabled=not (resume_file and (jd_file or jd_pasted) and company_name and job_title and passcode_ok),
+    disabled=not (demo or (resume_file and (jd_file or jd_pasted) and company_name and job_title and passcode_ok)),
 )
 
 # ---------------------------------------------------------------------------
@@ -134,20 +168,25 @@ if run_clicked:
         st.error("Live mode is locked behind a passcode on this deployment.")
         st.stop()
 
-    try:
-        resume_text = extract_text(resume_file.name, resume_file.getvalue())
-    except UnsupportedFileType as exc:
-        st.error(str(exc))
-        st.stop()
-
-    if jd_file:
+    if demo:
+        resume_text = (SAMPLE_DIR / "sample_resume.txt").read_text(encoding="utf-8")
+        jd_text = (SAMPLE_DIR / "sample_jd.txt").read_text(encoding="utf-8")
+        candidate_name, company_name, job_title = DEMO_CANDIDATE, DEMO_COMPANY, DEMO_JOB_TITLE
+    else:
         try:
-            jd_text = extract_text(jd_file.name, jd_file.getvalue())
+            resume_text = extract_text(resume_file.name, resume_file.getvalue())
         except UnsupportedFileType as exc:
             st.error(str(exc))
             st.stop()
-    else:
-        jd_text = jd_pasted
+
+        if jd_file:
+            try:
+                jd_text = extract_text(jd_file.name, jd_file.getvalue())
+            except UnsupportedFileType as exc:
+                st.error(str(exc))
+                st.stop()
+        else:
+            jd_text = jd_pasted
 
     pipeline_input = PipelineInput(
         candidate_name=candidate_name or "Candidate",
@@ -158,16 +197,18 @@ if run_clicked:
         user_goal=user_goal,
     )
 
-    application_id = db.create_application(
-        candidate_name=pipeline_input.candidate_name, company_name=company_name,
-        job_title=job_title, years_of_experience=years_of_experience or None,
-    )
+    application_id = None
+    if persist:
+        application_id = db.create_application(
+            candidate_name=pipeline_input.candidate_name, company_name=company_name,
+            job_title=job_title, years_of_experience=years_of_experience or None,
+        )
 
-    st.subheader("Live Execution Monitor")
+    st.subheader("Execution Monitor")
     progress_bar = st.progress(0.0)
     progress_caption = st.empty()
     graph_placeholder = st.empty()
-    st.subheader("Live Activity Console")
+    st.subheader("Activity Console")
     console_placeholder = st.empty()
 
     statuses = {a.id: "pending" for a in specialist_agents}
@@ -219,10 +260,11 @@ if run_clicked:
                 "task": event.message, "status": event.event_type.replace("agent_", ""),
                 "duration_ms": elapsed_ms, "error": event.error or "",
             })
-            db.insert_execution_log(
-                application_id, event.agent_id, event.event_type.replace("agent_", ""),
-                task=event.message, duration_ms=elapsed_ms, error=event.error,
-            )
+            if persist:
+                db.insert_execution_log(
+                    application_id, event.agent_id, event.event_type.replace("agent_", ""),
+                    task=event.message, duration_ms=elapsed_ms, error=event.error,
+                )
         elif event.event_type in ("critic_started", "critic_completed", "supervisor_started", "supervisor_completed"):
             log_rows.append({
                 "timestamp": event.timestamp, "agent": event.event_type.split("_")[0],
@@ -242,9 +284,9 @@ if run_clicked:
 
     render_live()
 
-    client_factory = (lambda: DemoLLMClient(delay_seconds=0.15)) if mode.startswith("Demo") else None
+    client_factory = (lambda: DemoLLMClient(delay_seconds=0.15)) if demo else None
     active_cost_limit = live_cost_limit_usd if mode.startswith("Live") else None
-    logger = RunLogger(db_path="career_copilot_runs.sqlite3")
+    logger = RunLogger(db_path="career_copilot_runs.sqlite3") if persist else None
 
     with st.spinner("Running..."):
         try:
@@ -253,10 +295,11 @@ if run_clicked:
                 client_factory=client_factory, cost_limit_usd=active_cost_limit,
             )
         except Exception as exc:  # noqa: BLE001 — surface the real error in the UI rather than a raw traceback
-            db.complete_application(
-                application_id, ats_score=None, skills_missing=[], interview_readiness=None,
-                quality_gate=None, status="failed", output_folder=None,
-            )
+            if persist:
+                db.complete_application(
+                    application_id, ats_score=None, skills_missing=[], interview_readiness=None,
+                    quality_gate=None, status="failed", output_folder=None,
+                )
             st.error(f"Pipeline run failed: {exc}")
             st.stop()
 
@@ -270,50 +313,65 @@ if run_clicked:
     if skill_out:
         skills_missing.extend(s for s in skill_out.get("weakly_evidenced_skills", []) if s not in skills_missing)
 
-    folder = create_output_folder(company_name, job_title)
-    written = save_application_outputs(
-        folder, result, original_resume_text=resume_text, original_jd_text=jd_text or None,
-        metadata={
-            "candidate_name": pipeline_input.candidate_name, "company_name": company_name,
-            "job_title": job_title, "mode": mode, "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-        },
-    )
+    metadata = {
+        "candidate_name": pipeline_input.candidate_name, "company_name": company_name,
+        "job_title": job_title, "mode": mode, "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
 
-    resume_version_id = db.insert_resume_version(
-        label=f"{company_name} / {job_title}", content_hash=resume_version_hash,
-        ats_score=ats_out.get("ats_compatibility_score") if ats_out else None,
-        application_id=application_id,
-    )
-
-    interview_readiness = None
-    if result.supervisor_output:
-        interview_readiness = "ready" if result.supervisor_output.final_deliverable_ready else "not_ready"
-
-    db.complete_application(
-        application_id, ats_score=ats_out.get("ats_compatibility_score") if ats_out else None,
-        skills_missing=skills_missing, interview_readiness=interview_readiness,
-        quality_gate=result.supervisor_output.quality_gate.value if result.supervisor_output else None,
-        status="completed", output_folder=str(folder),
-    )
-
-    company_intel = result.agent_outputs.get("company_intelligence")
-    if company_intel:
-        db.update_company_research(
-            company_name, industry=company_intel.get("industry"),
-            products=[p.get("name", str(p)) for p in company_intel.get("products", [])] if company_intel.get("products") else None,
-            tech_stack=company_intel.get("tech_stack"), culture=company_intel.get("engineering_culture"),
-            recent_news=[n.get("headline", str(n)) for n in company_intel.get("recent_news", [])] if company_intel.get("recent_news") else None,
-            required_skills=None,
+    folder = None
+    written = {}
+    artifacts = {}
+    if persist:
+        folder = create_output_folder(company_name, job_title)
+        written = save_application_outputs(
+            folder, result, original_resume_text=resume_text, original_jd_text=jd_text or None, metadata=metadata,
         )
 
+        resume_version_id = db.insert_resume_version(
+            label=f"{company_name} / {job_title}", content_hash=resume_version_hash,
+            ats_score=ats_out.get("ats_compatibility_score") if ats_out else None,
+            application_id=application_id,
+        )
+
+        interview_readiness = None
+        if result.supervisor_output:
+            interview_readiness = "ready" if result.supervisor_output.final_deliverable_ready else "not_ready"
+
+        db.complete_application(
+            application_id, ats_score=ats_out.get("ats_compatibility_score") if ats_out else None,
+            skills_missing=skills_missing, interview_readiness=interview_readiness,
+            quality_gate=result.supervisor_output.quality_gate.value if result.supervisor_output else None,
+            status="completed", output_folder=str(folder),
+        )
+
+        company_intel = result.agent_outputs.get("company_intelligence")
+        if company_intel:
+            db.update_company_research(
+                company_name, industry=company_intel.get("industry"),
+                products=[p.get("name", str(p)) for p in company_intel.get("products", [])] if company_intel.get("products") else None,
+                tech_stack=company_intel.get("tech_stack"), culture=company_intel.get("engineering_culture"),
+                recent_news=[n.get("headline", str(n)) for n in company_intel.get("recent_news", [])] if company_intel.get("recent_news") else None,
+                required_skills=None,
+            )
+    else:
+        artifacts = build_application_artifacts(
+            result, original_resume_text=resume_text, original_jd_text=jd_text or None, metadata=metadata,
+        )
+
+    where = f"saved to `{folder}`" if persist else "not saved on the server; download your files below"
     if result.stopped_for_cost_limit:
         spent = f"${result.total_cost_usd:.4f}" if result.total_cost_usd is not None else "an untracked amount"
         st.error(
             f"⛔ Stopped early — this run hit the ${active_cost_limit:.2f} cost limit "
-            f"(spent {spent}) and was cut off before completing. Partial results are saved to `{folder}`."
+            f"(spent {spent}) and was cut off before completing. Partial results are {where}."
         )
     else:
-        st.success(f"Pipeline complete — output saved to `{folder}`")
+        st.success(f"Pipeline complete — output {where}.")
+    if demo:
+        st.warning(
+            f"Demo result: these are the saved sample results for {DEMO_CANDIDATE}, "
+            "not an analysis of anything you entered."
+        )
     if result.total_cost_usd is not None and mode.startswith("Live"):
         st.caption(f"💵 Estimated cost this run: ${result.total_cost_usd:.4f}")
     gate = result.supervisor_output.quality_gate.value if result.supervisor_output else "unknown"
@@ -327,7 +385,24 @@ if run_clicked:
     if ats_out:
         st.metric("ATS Score", ats_out.get("ats_compatibility_score"))
 
-    st.write("**Artifacts saved:**")
-    for name, path in written.items():
-        st.write(f"- `{name}` → `{path}`")
-    st.info("See the **Outputs** page to preview/download individual artifacts, or **Previous Applications** for this run's summary.")
+    if persist:
+        st.write("**Artifacts saved:**")
+        for name, path in written.items():
+            st.write(f"- `{name}` → `{path}`")
+        st.info("See the **Outputs** page to preview/download individual artifacts, or **Previous Applications** for this run's summary.")
+    else:
+        # Kept in this visitor's session only, so the download buttons below
+        # survive the rerun each click triggers.
+        st.session_state["public_artifacts"] = artifacts
+
+if not persist and st.session_state.get("public_artifacts"):
+    st.subheader("Your files")
+    st.caption("Kept only for this browser session and never saved on the server. Download what you need before you leave.")
+    session_artifacts = st.session_state["public_artifacts"]
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file_name, content in session_artifacts.values():
+            zf.writestr(file_name, content)
+    st.download_button("⬇ Download all (.zip)", data=zip_buffer.getvalue(), file_name="career_copilot_results.zip", type="primary")
+    for key, (file_name, content) in session_artifacts.items():
+        st.download_button(file_name, data=content.encode("utf-8"), file_name=file_name, key=f"dl_{key}")

@@ -34,4 +34,4 @@ def render_summary_cards(db_path: str = db.DEFAULT_DB_PATH) -> None:
     cols[2].metric("Resume Versions", stats["resume_versions_created"])
     cols[3].metric("Avg ATS Score", stats["average_ats_score"] if stats["average_ats_score"] is not None else "—")
     cols[4].metric("Interviews Generated", stats["interviews_generated"])
-    cols[5].metric("Success Rate", f"{stats['success_rate']}%" if stats["success_rate"] is not None else "—")
+    cols[5].metric("Marked Ready", f"{stats['success_rate']}%" if stats["success_rate"] is not None else "—")

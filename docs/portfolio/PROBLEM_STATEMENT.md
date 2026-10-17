@@ -1,6 +1,6 @@
 # Problem Statement
 
-Serious job applications take 6-8 hours of fragmented, error-prone manual work: decoding what a JD actually screens for, researching a company beyond stale memory, honestly assessing fit, tailoring a resume without breaking ATS parsing, building interview answers, and drafting 4-6 pieces of outreach copy — each done from scratch, with no consistent quality bar.
+Serious job applications take hours of fragmented, error-prone manual work (an estimate; not yet measured): decoding what a JD actually screens for, researching a company beyond stale memory, honestly assessing fit, tailoring a resume without breaking ATS parsing, building interview answers, and drafting 4-6 pieces of outreach copy — each done from scratch, with no consistent quality bar.
 
 Generic AI chat assistance makes this faster but not safer: it produces confident, plausible-sounding output that is frequently *wrong in ways the candidate can't detect* — invented metrics, inflated scope, keyword-stuffed text that reads as robotic, interview answers built on facts not in the candidate's real history. In an interview, a fabricated claim doesn't fail quietly — it fails in front of the person deciding whether to hire you.
 

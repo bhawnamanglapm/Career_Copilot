@@ -12,11 +12,13 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from dashboard import db
+from dashboard.privacy import stop_if_public
 
 st.set_page_config(page_title="Analytics — Career Copilot", page_icon="📊", layout="wide")
 db.init_db()
 
 st.title("📊 Analytics")
+stop_if_public()
 
 apps = db.list_applications()
 if not apps:
