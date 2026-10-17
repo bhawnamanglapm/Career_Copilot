@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from dashboard import db
 from dashboard.discovery import discover_agents
+from dashboard.privacy import is_public_deployment
 
 st.set_page_config(page_title="Settings — Career Copilot", page_icon="⚙️", layout="wide")
 db.init_db()
@@ -37,18 +38,22 @@ elif has_key:
     st.write("♾️ No `LIVE_MODE_COST_LIMIT_USD` set — Live runs have no automatic spending cap.")
 
 st.subheader("Database")
-st.write(f"Dashboard DB: `{db.DEFAULT_DB_PATH}`")
-st.write(f"Pipeline run log: `career_copilot_runs.sqlite3`")
+if is_public_deployment():
+    st.write("🔒 `PUBLIC_DEPLOYMENT` is on — runs are not saved, and history and exports are turned off.")
+else:
+    st.write("💾 `PUBLIC_DEPLOYMENT` is off — every run is saved locally. Turn it on before sharing this app's URL.")
+    st.write(f"Dashboard DB: `{db.DEFAULT_DB_PATH}`")
+    st.write(f"Pipeline run log: `career_copilot_runs.sqlite3`")
 
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("Export applications CSV"):
-        path = db.export_table_csv("applications", "dashboard/applications_export.csv")
-        st.success(f"Exported to `{path}`")
-with col2:
-    if st.button("Export applications Excel"):
-        path = db.export_table_excel("applications", "dashboard/applications_export.xlsx")
-        st.success(f"Exported to `{path}`")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Export applications CSV"):
+            path = db.export_table_csv("applications", "dashboard/applications_export.csv")
+            st.success(f"Exported to `{path}`")
+    with col2:
+        if st.button("Export applications Excel"):
+            path = db.export_table_excel("applications", "dashboard/applications_export.xlsx")
+            st.success(f"Exported to `{path}`")
 
 st.divider()
 st.subheader("Discovered agents")
