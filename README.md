@@ -74,6 +74,7 @@ streamlit run dashboard/app.py          # opens at http://localhost:8501
 - **Demo mode** (default) needs no key. It replays the saved sample results for the fictional candidate and ignores uploads.
 - **Live mode** analyses your own resume. Set `ANTHROPIC_API_KEY` first. Each run makes billed API calls, including web search.
 - **Sharing the app with others?** Set `PUBLIC_DEPLOYMENT=1`. Without it, every visitor can see every other visitor's resume and results. Also consider `LIVE_MODE_PASSCODE` and `LIVE_MODE_COST_LIMIT_USD`. Details: [dashboard/README.md](dashboard/README.md).
+- **Hosting on Vercel:** the repo includes `asgi.py` and `vercel.json`. Steps, settings and known limits (Live runs may be cut off after 5 minutes on the free plan) are in [dashboard/README.md](dashboard/README.md#deploying-on-vercel).
 - **Offline checks:** `python scripts/smoke_test.py`.
 
 ## Limits
