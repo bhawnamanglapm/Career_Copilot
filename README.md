@@ -6,25 +6,20 @@
 
 *The dashboard in Demo mode. Every agent node turned green, meaning it finished.*
 
-## At a glance
-
 | | |
 |---|---|
-| **What it is** | A working prototype: a Python multi-agent pipeline with a Streamlit dashboard. It runs on your own computer. |
+| **What it is** | A working prototype: a Python multi-agent pipeline with a Streamlit dashboard. |
 | **Try it** | **[career-copilot-gold-six.vercel.app](https://career-copilot-gold-six.vercel.app)**: Demo mode, no sign-up. It replays the fictional sample and saves nothing about you. |
-| **Status** | Demo mode runs end to end without an API key. Live mode, which calls Anthropic's API with your own key, exists in the code but has **no recorded runs** in this repository and was not run in the 2026-10-18 review. |
-| **Evidence** | Each agent has one sample output, all for the same fictional candidate. An offline smoke test runs on every push in GitHub Actions. |
+| **Status** | Demo mode runs end to end without an API key. Live mode, which calls Anthropic's API with your own key, exists in the code but has **no recorded runs** in this repository. |
 | **Not yet shown** | Accuracy on real resumes, time saved, or any user testing. |
-| **Built with** | Python, the Anthropic SDK, Pydantic, Streamlit, Plotly, SQLite. Built with Claude Code, an AI coding assistant. |
+| **Product owner** | Bhawna Mangla. Built with AI (Claude Code). |
+| **More** | [PRD and status](docs/PRD.md) · [Decision log](docs/decisions.md) · [Changelog](CHANGELOG.md) · [Technical reference](docs/TECHNICAL.md) · [Lessons learned](docs/portfolio/LESSONS_LEARNED.md) |
 
-## Who did what
+---
 
-- **Bhawna Mangla** (GitHub [bhawnamanglapm](https://github.com/bhawnamanglapm); earlier commits appear as Bhavu211): product owner. She directed the build, reviewed and merged each pull request, and added the dev container.
-- **Claude Code**: wrote the agents, pipeline, dashboard, sample outputs and docs under her direction (27 of 34 commits).
+## Problem
 
-## The problem
-
-A serious job application takes hours of scattered work. You have to:
+A serious job application takes hours of scattered work (an estimate; not measured). You have to:
 - work out what the posting really screens for;
 - research the company;
 - judge your fit honestly;
@@ -32,259 +27,148 @@ A serious job application takes hours of scattered work. You have to:
 - prepare interview answers;
 - draft outreach.
 
-Generic AI chat can do each step, but it tends to invent achievements and skills to make a resume look better. Career Copilot is built around the opposite rule: **every claim must trace back to the resume, the posting, or a cited source.**
+Generic AI chat can do each step, but it tends to invent achievements and skills to make a resume look better. That failure is worse than being unhelpful: a made-up claim surfaces in the interview, in front of the person deciding whether to hire you.
 
-## How it works
+Career Copilot is built around the opposite rule: **every claim must trace back to the resume, the posting, or a cited source, and when there is no evidence the system says so instead of filling the gap.**
 
-1. **15 specialist agents** each do one job, for example: resume analysis, job-posting analysis, company research, ATS optimisation, resume rewrite, gap analysis, skill evidence, recruiter simulation, interview coach, LinkedIn, cover letter and outreach, learning plan, career strategy, and a final report.
-2. **A Planner** picks which specialists a request needs and runs them in dependency order.
-3. **A Critic** reviews the specialists' real outputs for unsupported claims and inconsistencies.
-4. **A Supervisor** checks the plan against what actually ran, checks that each serious Critic finding has a specific fix, and gives the final verdict.
+**Intended users** (from the [full PRD](docs/product/PRD.md)): job seekers applying to specific roles; career changers who want an honest read on where they stand.
 
-Each agent must return structured data in a fixed format (not free text), and its instructions forbid inventing facts. Agents that research the real world, such as company research, search the web first and must cite sources.
+> **OWNER INPUT NEEDED:** what made you build this? For example, your own job search, or watching others use ChatGPT for applications. The repo records no user research. If there was none, say so.
 
-## What the sample run shows
+## Why AI, and why not just rules
 
-All sample outputs use one **fictional** candidate, Ananya Sharma, applying for a Senior Product Manager, Risk & Fraud job at Razorpay ([sample resume](samples/sample_resume.txt), [sample job description](samples/sample_jd.txt)).
+The repo does not record whether a rules-based tool was tried first. This is how the work is split between the model and plain code:
 
-- The ATS agent scored the resume **82**. The Supervisor's verdict was **passed with notes, ready to send**.
-- The Critic caught a real inconsistency: the learning-plan agent claimed "~45–55 hours" in total, but its own line items add up to 30–44 hours ([critic output](outputs/critic_sample_output.md)).
-- The company-research sample cites public news sources about Razorpay. Those sources were not re-checked in this review.
+| Job | Who does it | Why |
+|---|---|---|
+| Reading a resume and a posting, finding gaps, rewriting bullets, drafting answers and outreach | Claude, one agent per job | Resumes and postings are free text in every format. Judging what counts as evidence for a skill is a reading task, not a keyword match. |
+| Company research, learning resources, salary context | Claude with web search, then a second call to structure the answer | These are facts about the real world that change. A model's memory is out of date, so these agents search and must cite sources. |
+| Checking the agents' work | Claude (the Critic and Supervisor agents) | They read the other agents' outputs and re-add the numbers. |
+| Output format of every agent | **Plain code** (Pydantic schemas) | Each agent must return data in a fixed shape. A reply that doesn't fit is rejected, so no agent parses another's prose. |
+| What order agents run in | **Plain code** reads a shared registry of agents and what each needs | The Planner agent picks which agents to run. The order comes from the registry, not from the model, and a name that isn't in the registry stops the run with an error. |
+| Spend limit, Live-mode passcode, privacy on a public server | **Plain code** | These must not depend on a model's judgement. |
 
-These are the outputs of one sample. They show the format and the reasoning, not how accurate the system is on real resumes.
+**Where rules would do better, and aren't used yet:** the ATS score is produced by the model and only checked to be between 0 and 100. The Critic re-adds it, but that is one model checking another. Arithmetic like this could be computed in code. (Proposal, not built.)
 
-## What has been checked
+## Key decisions and tradeoffs
+
+Full log with dates and sources: [docs/decisions.md](docs/decisions.md).
+
+1. **Eighteen narrow agents instead of one big prompt.** *Gave up:* simplicity and cost. A full run makes many model calls. *Got:* each agent has one schema and one sample, so it can be checked on its own, and the Critic can compare agents against each other.
+2. **"No evidence" is a field value, not just a prompt instruction.** Fields can be empty, and placeholders like `[Recruiter Name]` are part of the format. For example, Interview Coach returns no story at all when the resume has nothing to support one. *Gave up:* outputs that always look complete. *Got:* the gap shows instead of being papered over.
+3. **Research in two steps.** Agents that need real-world facts search the web in one call, then a second call without search shapes the result. *Gave up:* one call per agent. *Got:* a research gap and a formatting error can be told apart. The output keeps sourced facts separate from assumptions.
+4. **A shared registry of agents.** The Planner, Critic and Supervisor all read one machine-readable list of agents and what each needs, instead of each having its own description in a prompt. The Critic checks every agent name it reviews against it. *Gave up:* nothing much, but the registry must be kept in step with the agents by hand.
+5. **The system drafts; the user sends.** It never submits an application or sends a message. *Gave up:* automation. *Got:* the person stays responsible for what goes out under their name.
+6. **The public demo replays one fictional sample.** *Gave up:* letting visitors try their own resume on the hosted site. *Got:* no API cost, no key on a public server, and nothing stored about visitors.
+7. **Spend limit and passcode for Live mode.** An optional cap stops a run the moment estimated cost reaches it, before any further agent is called. An optional passcode locks Live mode on a shared server.
+
+## How I measured quality
+
+**What is tested.** `python scripts/smoke_test.py` runs offline, with no API key, on every push in GitHub Actions. Re-run locally on 19 Oct 2026: **20 of 20 checks pass.**
 
 | Check | Result | How |
 |---|---|---|
-| All 18 sample outputs match their agents' data formats | Pass | [`scripts/smoke_test.py`](scripts/smoke_test.py), in CI |
-| Full pipeline runs in Demo mode | Pass: 15 specialists completed, 0 failed, verdict produced | Smoke test, in CI |
-| Demo mode runs the sample, not what a visitor uploads | Pass | Smoke test, and in a browser on 2026-10-18 |
-| Public mode stores nothing about a visitor | Pass: no database file, 0 files; a second visitor sees no history | Smoke test, and in a browser |
-| Hosted demo on Vercel | Pass: demo run, all 24 downloads, history pages off | Headless browser on the live link, 2026-10-18 (Demo mode only) |
-| Live mode against the real API | **Not checked.** No key was used; no live-run records are in the repo. The default model ID (`claude-sonnet-5`) is unconfirmed. | — |
-| Quality of agent output on real resumes | **Not measured.** An evaluation harness exists ([`career_copilot/evals/`](career_copilot/evals/)) with no recorded results. | — |
-| Users | **None recorded** | — |
+| All 18 sample outputs match their agents' data formats | 18 of 18 | Smoke test, in CI |
+| Full pipeline runs in Demo mode | 15 specialists completed, 0 failed, verdict produced | Smoke test, in CI |
+| Demo mode runs the sample, not what a visitor uploads | Pass | Smoke test; browser, 18 Oct 2026 |
+| Public mode stores nothing about a visitor | No database file, no output files, no run log; all 7 sidebar pages load in public mode | Smoke test; browser |
+| Hosted demo on Vercel | Demo run completes, all 24 downloads work, history pages off | Headless browser on the live link, 18 Oct 2026 (Demo mode only) |
+| Live mode against the real API | **Not checked.** No key was used and no live-run records are in the repo. The default model ID in the code (`claude-sonnet-5`) is unconfirmed. | — |
+
+The smoke test proves the plumbing: formats, run order, privacy. **It does not test whether the advice is any good.**
+
+**The Critic's review of the sample run.** The Critic agent read all 15 specialist outputs for the fictional candidate and re-added every number it could check:
+
+<img src="docs/portfolio/screenshots/critic.png" alt="Critic agent report: overall 91/100, 1 major issue, the learning plan's stated total does not match its line items" width="560">
+
+- **It found one real bug.** The learning-plan agent said "~45–55 hours" in total, but its own four line items add up to 30–44 hours. The sample was fixed after the review ([critic output](outputs/critic_sample_output.md)).
+- Other re-added numbers matched: the ATS score (100 − 8 − 6 − 4 = 82), gap counts, evidence counts, a placeholder count and a 300-character limit.
+- Its other ratings, such as 91/100 overall and "hallucination risk: low", are **one AI model's judgement of another's work** on one sample. They are not accuracy measurements.
+
+**What is not measured:** the quality of the output on real resumes. An evaluation harness exists ([`career_copilot/evals/`](career_copilot/evals/)). It runs test cases through an agent and has a second model score each one for accuracy and invented facts. It has **no test cases written and no results**, and running it needs an API key. That is why this repo has no `evals/` folder yet.
+
+**Proposed eval set (draft, not run):** 20–30 cases for the agents where invention does the most damage (Resume Rewrite, Interview Coach, Gap Analysis). Each case would be a synthetic resume and posting where the right answer is known:
+- *Easy and normal:* a well-matched resume. Does the rewrite keep every fact?
+- *Missing evidence:* the posting asks for a skill the resume never mentions. Does the agent say "no evidence", or invent it?
+- *Bait:* a vague resume line ("worked on payments"). Does the rewrite add a metric or scope that isn't there?
+- *Bad input:* an empty resume, or a posting in another language.
+- *Mismatch:* a nurse resume against a Rust engineering job. Does it say plainly that this is a poor fit?
+
+Scoring would be a pass or fail per case on "every claim traces to the input", checked by a person, with the model judge's score alongside so the two can be compared.
+
+> **OWNER INPUT NEEDED:** run the cases with your own API key (I don't handle keys), or confirm the plan so the cases can be written for you to run.
+
+## Failure modes and guardrails
+
+| What can go wrong | Guardrail | Proven by |
+|---|---|---|
+| An agent invents an achievement, metric or credential | Instructions forbid it; "no evidence" is a valid output; the Critic checks for it | Only on the one sample. Not measured on real resumes. **This is the main open risk.** |
+| A rewrite inflates scope ("Managed" becomes "Owned") | The Resume Rewrite agent is told to keep facts; the Critic looks for inflated verbs | The Critic flagged exactly this in the sample's "Startup" version as a minor issue |
+| A stated total doesn't match its own parts | The Critic re-adds the numbers | Caught the learning-plan bug in the sample |
+| Company facts are out of date or wrong | Web search first; sourced facts kept separate from assumptions | The sample cites public news about Razorpay; those sources were not re-checked |
+| An agent's reply isn't in the expected format | Rejected by its schema | Smoke test: 18 of 18 samples match |
+| The Planner names an agent or dependency that doesn't exist | Run order comes from the shared registry; an unknown name stops the run with an error rather than being guessed at | The Planner's sample plan was checked against the registry when it was built (`422fde5`) |
+| A Live run gets expensive | Optional spend cap stops the run immediately; optional passcode | Code path exists; **not exercised against the real API** |
+| Visitors on a shared server see each other's resumes | `PUBLIC_DEPLOYMENT=1` saves nothing and turns history off | Smoke test; browser; the hosted demo runs this way |
+| Someone reads the demo result as an analysis of their own resume | Demo mode hides the upload fields and says it replays one fictional candidate | Smoke test; browser |
+| A candidate repeats AI-written lines they can't back up in an interview | **None in the system.** This is about how people use it, and is listed as a risk in [RISKS.md](docs/product/RISKS.md). | — |
+
+## Users and iteration
+
+**No users are recorded.** All outputs are for one fictional candidate (Ananya Sharma, Senior Product Manager, Risk & Fraud at Razorpay; [sample resume](samples/sample_resume.txt), [sample job description](samples/sample_jd.txt)).
+
+**What changed after a review on 18 Oct 2026**, when the repo was checked against its own claims:
+
+| Before | After | Commit |
+|---|---|---|
+| Demo mode replayed the sample whatever you uploaded, and saved it under your name. A nurse resume against a Rust job came back "ATS 82, ready". | Demo mode hides uploads and says plainly that it replays one fictional candidate | `e138067` |
+| On a shared server, any visitor could open any other visitor's resume | `PUBLIC_DEPLOYMENT=1` stores nothing and turns history off | `e138067`, `b5dafad` |
+| A dashboard card called "Success Rate" | Renamed "Marked Ready": it counts runs the Supervisor marked ready, not job-search success | `df439dc` |
+| "6–8 hours per role" | "Hours (an estimate; not measured)": the figure had no source | `d9433f5` |
+| The sample resume had a realistic-looking email, phone number and LinkedIn URL | Reserved example values | `80c1073` |
+| No automated checks | Offline smoke test on every push | `48cbbe1` |
+
+> **OWNER INPUT NEEDED.** Did anyone other than you run it on a real application? What did they say?
+>
+> **"I was wrong about…" candidates from the build record** (pick one and say it in your own words, or replace it):
+> - *The Critic:* per [LESSONS_LEARNED](docs/portfolio/LESSONS_LEARNED.md), its first pass approved 14 of 15 agents. A reviewer that always says "looks good" isn't checking. It only caught a real bug once it had a mechanical task: re-add every total. (The git history holds only the final version of the Critic, so the earlier pass isn't in the repo.)
+> - *Prompts alone:* per the same notes, "never invent facts" in the instructions wasn't enough. Models filled gaps anyway until "no evidence" became an allowed value in the format.
+> - *The demo:* it looked like a working analysis of anyone's resume, but it always returned the sample's answer. A visitor could have believed a nurse resume was "ready" for a Rust job.
+
+## What's next
+
+1. **Record one Live run** with a real key on the sample, and publish the cost, time and output next to the demo. Confirm the default model ID first.
+2. **Write and run the 20–30 case eval set** above, and publish the pass rate for invented claims.
+3. **Test with three to five real job seekers** on real postings, and record what they changed before sending.
+4. **Compute checkable numbers in code** (ATS score arithmetic, totals) instead of asking the model.
+5. **Flag borderline wording for the user to confirm** (for example "Managed" to "Owned") instead of the rewrite deciding alone.
+6. **Re-record the deck and video.** They predate the October review; see the note in [`docs/presentation/`](docs/presentation/).
+
+## How I built it
+
+Product owner, built with AI (Claude). The agents, pipeline, dashboard, sample outputs and first docs were written by Claude Code in July 2026, almost all on 10 Jul (27 of 34 commits up to the October review), with Bhawna Mangla (GitHub [bhawnamanglapm](https://github.com/bhawnamanglapm); earlier commits appear as Bhavu211) directing the build, reviewing and merging. She added the dev container. The October review, the privacy fixes, the smoke test and the Vercel deployment were also done with Claude Code.
+
+> **OWNER INPUT NEEDED:** confirm or edit this line before publishing: *"Implemented with Claude Code; I owned the problem framing, architecture decisions, evals and testing."* The repo shows what was built and when, but not who decided what. Note that no evals have been run yet, so "evals" may need to come out of that sentence for now.
+
+**Stack:** Python, the Anthropic SDK, Pydantic, Streamlit, Plotly, SQLite; hosted on Vercel. Details in the [technical reference](docs/TECHNICAL.md).
 
 ## Run it yourself
 
 ```bash
 pip install -r requirements.txt
 streamlit run dashboard/app.py          # opens at http://localhost:8501
+python scripts/smoke_test.py            # offline checks
 ```
 
-- **Demo mode** (default) needs no key. It replays the saved sample results for the fictional candidate and ignores uploads.
+- **Demo mode** (default) needs no key. It replays the saved sample for the fictional candidate and ignores uploads.
 - **Live mode** analyses your own resume. Set `ANTHROPIC_API_KEY` first. Each run makes billed API calls, including web search.
-- **Sharing the app with others?** Set `PUBLIC_DEPLOYMENT=1`. Without it, every visitor can see every other visitor's resume and results. Also consider `LIVE_MODE_PASSCODE` and `LIVE_MODE_COST_LIMIT_USD`. Details: [dashboard/README.md](dashboard/README.md).
-- **Hosting on Vercel:** the repo includes `asgi.py` and `vercel.json`, and the demo link above runs on Vercel. Steps, settings and known limits (Live runs may be cut off after 5 minutes on the free plan) are in [dashboard/README.md](dashboard/README.md#deploying-on-vercel).
-- **Offline checks:** `python scripts/smoke_test.py`.
+- **Sharing the app with others?** Set `PUBLIC_DEPLOYMENT=1`, or every visitor can see every other visitor's resume and results. Also consider `LIVE_MODE_PASSCODE` and `LIVE_MODE_COST_LIMIT_USD`. Details: [dashboard/README.md](dashboard/README.md), including [deploying on Vercel](dashboard/README.md#deploying-on-vercel) (Live runs may be cut off after 5 minutes on the free plan).
 
-## Limits
-
-- No logins: history is either shared by everyone using one server, or switched off with `PUBLIC_DEPLOYMENT=1`.
-- One fictional sample is the only worked example. There are no real-resume results.
-- The presentation deck and video in [`docs/presentation/`](docs/presentation/) predate this review. See the note in that folder before sharing them.
+**Limits:** no logins; one fictional sample is the only worked example.
 
 ## Documentation
 
-- [`docs/product/`](docs/product/): PRD, user stories, roadmap, risks, competitive analysis.
+- [`docs/product/`](docs/product/): full PRD, user stories, roadmap, risks, competitive analysis.
 - [`docs/agents/`](docs/agents/): one page per agent.
-- [`docs/portfolio/`](docs/portfolio/): problem statement, architecture, lessons learned, screenshots of each agent's report.
-- [`dashboard/README.md`](dashboard/README.md): the dashboard, its settings and storage.
-
----
-
-## Technical details
-
-### Architecture
-
-```
-career_copilot/
-  core/
-    common.py        # shared enums/types (ConfidenceLevel, Severity, QualityIssue, ...)
-    llm_client.py     # Anthropic API wrapper — forces structured JSON via tool_choice;
-                       # also run_with_web_search() for research-grounded agents
-    base_agent.py     # BaseAgent[TIn, TOut]: validated input -> validated output
-    registry.py        # AGENT_REGISTRY — machine-readable catalog of all 15 specialist
-                         # agents (requires/optional_inputs/depends_on) that Planner and
-                         # Supervisor ground their orchestration in, instead of guessing
-    pricing.py          # per-model token pricing -> estimate_cost()
-    run_log.py           # RunLogger — persists every run_pipeline() call to SQLite
-  evals/
-    judge.py             # JudgeAgent — LLM-as-judge scoring for dev-time validation
-    harness.py            # EvalCase/EvalResult/EvalReport + run_eval_suite()
-  agents/
-    resume_analysis.py       # Agent 1
-    jd_intelligence.py       # Agent 2
-    company_intelligence.py  # Agent 3 — two-phase: web research, then structure
-    ats_optimization.py      # Agent 4
-    resume_rewrite.py        # Agent 5
-    gap_analysis.py           # Agent 6
-    skill_evidence.py         # Agent 7
-    portfolio_recommendation.py  # Agent 8 — takes structured gaps, not a raw document
-    learning_certification.py    # Agent 9 — two-phase like Company Intelligence
-    recruiter_simulation.py      # Agent 10
-    interview_coach.py           # Agent 11
-    linkedin_optimization.py     # Agent 12
-    application_assets.py        # Agent 13
-    career_strategy.py           # Agent 14 — two-phase like Company Intelligence; synthesizes agents 6-10
-    final_report.py               # Agent 15 — synthesizes all 14 upstream agents' summaries
-    planner.py                     # Agent 16 — orchestration layer; plans against AGENT_REGISTRY
-    critic.py                       # Agent 17 — reviews agents 1-15's real outputs against AGENT_REGISTRY
-    supervisor.py                   # Agent 18 — top-level entry point; go/no-go verdict from Planner + Critic
-  pipeline.py          # run_pipeline() — wires all 18 agents together in real dependency order
-  cli.py              # run a single agent from the command line (docs-only agents)
-samples/
-  sample_resume.txt   # fixture used for agents 1, 4, 5, 6, 7, 10, 11, 12, 13, 14
-  sample_jd.txt        # fixture used for agents 2, 4, 5, 6, 7, 10, 11, 12, 13 (paired with sample_resume.txt's PM/fintech profile)
-outputs/
-  resume_analysis_sample_output.{json,md}     # sample output, agent 1
-  jd_intelligence_sample_output.{json,md}      # sample output, agent 2
-  company_intelligence_sample_output.{json,md} # sample output, agent 3
-  ats_optimization_sample_output.{json,md}     # sample output, agent 4
-  resume_rewrite_sample_output.{json,md}       # sample output, agent 5
-  gap_analysis_sample_output.{json,md}         # sample output, agent 6
-  skill_evidence_sample_output.{json,md}       # sample output, agent 7
-  portfolio_recommendation_sample_output.{json,md} # sample output, agent 8
-  learning_certification_sample_output.{json,md}   # sample output, agent 9
-  recruiter_simulation_sample_output.{json,md}     # sample output, agent 10
-  interview_coach_sample_output.{json,md}          # sample output, agent 11
-  linkedin_optimization_sample_output.{json,md}    # sample output, agent 12
-  application_assets_sample_output.{json,md}       # sample output, agent 13
-  career_strategy_sample_output.{json,md}          # sample output, agent 14
-  final_report_sample_output.{json,md}             # sample output, agent 15 — the consolidated dashboard
-  planner_sample_output.{json,md}                  # sample output, agent 16
-  critic_sample_output.{json,md}                   # sample output, agent 17 — its review of agents 1-15
-  supervisor_sample_output.{json,md}               # sample output, agent 18 — the final go/no-go verdict
-docs/
-  agents/           # docs/agents/<agent_id>.md — purpose, inputs, outputs, limitations, future work, per agent
-  product/          # PRD.md, USER_STORIES.md, ROADMAP.md, RISKS.md, COMPETITIVE_ANALYSIS.md
-  portfolio/        # problem statement, architecture diagram, lessons learned, screenshots
-```
-
-Every agent:
-- Declares a Pydantic `input_model` and `output_model` (the output model's JSON
-  schema doubles as the Anthropic tool schema, so the model is forced to return
-  valid, typed JSON — not free text to parse).
-- Has a `system_prompt` written from the agent's professional persona (senior
-  recruiter, ATS expert, etc.) with an explicit non-fabrication rule.
-- Implements `build_user_prompt(data) -> str`.
-
-### Running the full pipeline
-
-`career_copilot/pipeline.py` is the real top-to-bottom entry point all 18
-agents were built to compose into. `run_pipeline()` runs Planner Agent to
-decide what's needed, executes every specialist agent the plan calls for in
-real dependency order (topologically sorted from `AGENT_REGISTRY`, not a
-hardcoded sequence), wires each agent's actual required fields from its
-dependencies' real structured output (e.g. Portfolio Recommendation's
-`gaps_to_close` comes from Gap Analysis's `critical_gaps`, not raw text),
-runs Final Report, then Critic, then Supervisor for the final verdict:
-
-```python
-from career_copilot.pipeline import run_pipeline, PipelineInput
-
-result = run_pipeline(PipelineInput(
-    candidate_name="...", target_role="...",
-    resume_text=open("samples/sample_resume.txt").read(),
-    jd_text=open("samples/sample_jd.txt").read(),
-    company_name="...",
-    user_goal="I want a tailored resume, a gap analysis, and interview prep.",
-))
-print(result.supervisor_output.quality_gate, result.supervisor_output.final_deliverable_ready)
-```
-
-The wiring (dependency order, inter-agent field mapping) is checked offline
-by replaying the `outputs/*_sample_output.json` samples through
-`DemoLLMClient` in `scripts/smoke_test.py`. A live run needs `ANTHROPIC_API_KEY`.
-
-#### Persisting every run
-
-Pass a `RunLogger` to persist each run's date, company, JD snippet, resume
-version, ATS score, missing skills, interview question count, and the full
-verdict to SQLite — nothing is logged unless you opt in:
-
-```python
-from career_copilot.core.run_log import RunLogger
-
-logger = RunLogger(db_path="career_copilot_runs.sqlite3")
-result = run_pipeline(pipeline_input, logger=logger)
-for run in logger.query_runs(company_name="Razorpay"):
-    print(run.run_at, run.ats_score, run.quality_gate)
-```
-
-#### Evaluating an agent
-
-`career_copilot/evals/` scaffolds dev-time validation: write a suite of
-easy/normal/edge/bad-input/missing-information cases per agent, run them
-through an LLM judge, and get back per-case hallucination detection, scores,
-token counts, and cost — the workflow Phase 1 of the project's validation
-plan calls for, once a live API key is available to populate real numbers:
-
-```python
-from career_copilot.agents.resume_analysis import ResumeAnalysisAgent
-from career_copilot.evals.harness import EvalCase, run_eval_suite
-
-cases = [
-    EvalCase(case_id="easy-1", category="easy", description="Well-formed resume.",
-             input_kwargs={"resume_text": open("samples/sample_resume.txt").read()}),
-    EvalCase(case_id="edge-1", category="edge", description="Minimal, sparse resume.",
-             input_kwargs={"resume_text": "Jane Doe. 1 year experience."}),
-]
-report = run_eval_suite("resume_analysis", ResumeAnalysisAgent(), cases)
-print(report.mean_overall_score, report.hallucination_count, report.total_cost_usd)
-```
-
-### Running a single agent
-
-```bash
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-ant-...
-python -m career_copilot.cli resume_analysis samples/sample_resume.txt
-```
-
-Without an API key, see `outputs/*_sample_output.json` for a sample of
-each agent's output shape.
-
-### Design decisions
-
-- **Language/runtime:** Python + the `anthropic` SDK + Pydantic v2 for schema
-  validation — chosen for clean structured I/O between agents and minimal
-  ceremony per agent.
-- **Structured output:** every agent forces a single tool call matching its
-  output schema (`core/llm_client.py:run_structured`), so downstream agents
-  never depend on parsing prose.
-- **Samples:** each agent ships with a fixture input and a sample output,
-  written and checked against the agent's schema before the next agent was
-  built. `scripts/smoke_test.py` re-checks every sample against its schema.
-- **Research-grounded agents:** agents whose subject is the real world rather
-  than a document the user provided (e.g. Company Intelligence) run in two
-  phases — a research call with Anthropic's server-side `web_search` tool,
-  then a non-searching structuring call — designed to reduce fabrication on
-  real-world facts and tie each claim to a cited source (not yet measured).
-- **Extraction vs. synthesis agents:** agents 1-7 take raw source text
-  (resume/JD) and re-derive their own findings independently — this keeps
-  them testable in isolation and lets a later Supervisor/Critic agent
-  cross-check their outputs for consistency rather than trusting one agent's
-  chain blindly. Agent 8 (Portfolio Recommendation) is the first pure
-  synthesis agent: it takes an already-identified list of gaps (typically
-  sourced from Gap Analysis / Skill Evidence) rather than re-reading the
-  resume, since its job is generative, not extractive.
-- **Reporting:** agents return JSON for machine consumption; the Final Report
-  Agent (agent 15) is responsible for rendering the consolidated HTML dashboard.
-- **Orchestration layer (agents 16-18):** Planner, Critic, and Supervisor don't
-  analyze resumes/JDs/companies themselves — they reason about the *other 15
-  agents*. Their shared ground truth is `core/registry.py`'s `AGENT_REGISTRY`,
-  a machine-readable catalog of every agent's required/optional inputs and
-  real dependencies, built directly from how each agent is implemented. This
-  lets the orchestration layer's output be checked against agents and
-  dependency edges that really exist — Planner
-  Agent's sample plan had every `agent_id` and `depends_on` reference
-  programmatically checked against the registry before being accepted.
-  Supervisor Agent (18) is the system's top-level entry point: it cross-checks
-  Planner's execution plan against what actually ran, cross-checks every
-  major/critical issue Critic found against a named, specific fix (never
-  marking something resolved on a general assurance), and renders a single
-  `quality_gate` / `final_deliverable_ready` verdict — while carrying forward
-  every limitation the other 17 agents raised, rather than letting the
-  verdict imply more confidence than the system actually earned.
+- [`docs/portfolio/`](docs/portfolio/): problem statement, architecture, lessons learned, a screenshot of each agent's report.
+- [`docs/TECHNICAL.md`](docs/TECHNICAL.md): code layout, running the pipeline and agents from Python, engineering design decisions.
