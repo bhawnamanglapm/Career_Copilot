@@ -11,7 +11,8 @@ tailored resume versions, company research, interview prep, outreach drafts) whe
 inputs or a cited source, then give a ready / not-ready verdict.
 
 **Users** (from the PRD): job seekers applying to specific roles; career changers who want an honest read on where
-they stand; people studying multi-agent design. **No users are recorded.**
+they stand; people studying multi-agent design. **Real people have used it, but API credits limited how much** (the
+owner's account). No run logs or feedback from them are in the repository.
 
 ## Functional requirements
 
@@ -51,8 +52,8 @@ The PRD names hallucination rate, accuracy on hard facts, completeness, cost per
 time saved and interview or offer rate. **None has been measured.** A proposed first eval set is in the
 [README](../README.md#how-i-measured-quality).
 
-> **OWNER INPUT NEEDED:** the target for each metric. For example: what rate of invented claims would be acceptable
-> before you'd let a real job seeker use it?
+**Target:** zero invented claims on the eval set. Targets for the other metrics will be set once the first eval run
+gives a baseline.
 
 ## Open questions
 

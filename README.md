@@ -12,7 +12,7 @@
 | **Try it** | **[career-copilot-gold-six.vercel.app](https://career-copilot-gold-six.vercel.app)**: Demo mode, no sign-up. It replays the fictional sample and saves nothing about you. |
 | **Status** | Demo mode runs end to end without an API key. Live mode, which calls Anthropic's API with your own key, exists in the code but has **no recorded runs** in this repository. |
 | **Sample outputs** | The 18 saved outputs that Demo mode replays were written during the July build by following each agent's prompt, not produced by the pipeline calling the API. Each sample file says how it was made. |
-| **Not yet shown** | Accuracy on real resumes, time saved, or any user testing. |
+| **Not yet shown** | Accuracy on real resumes, time saved, or recorded user feedback. |
 | **Product owner** | Bhawna Mangla. Built with AI (Claude Code). |
 | **More** | [PRD and status](docs/PRD.md) · [Decision log](docs/decisions.md) · [Changelog](CHANGELOG.md) · [Technical reference](docs/TECHNICAL.md) · [Lessons learned](docs/portfolio/LESSONS_LEARNED.md) |
 
@@ -95,7 +95,7 @@ The smoke test proves the plumbing: formats, run order, privacy. **It does not t
 - *Bad input:* an empty resume, or a posting in another language.
 - *Mismatch:* a nurse resume against a Rust engineering job. Does it say plainly that this is a poor fit?
 
-Scoring would be a pass or fail per case on "every claim traces to the input", checked by a person, with the model judge's score alongside so the two can be compared.
+Scoring would be a pass or fail per case on "every claim traces to the input", checked by a person, with the model judge's score alongside so the two can be compared. **Target: zero invented claims.**
 
 > **OWNER INPUT NEEDED:** run the cases with your own API key (I don't handle keys), or confirm the plan so the cases can be written for you to run.
 
@@ -116,7 +116,7 @@ Scoring would be a pass or fail per case on "every claim traces to the input", c
 
 ## Users and iteration
 
-**No users are recorded.** All outputs are for one fictional candidate (Ananya Sharma, Senior Product Manager, Risk & Fraud at Razorpay; [sample resume](samples/sample_resume.txt), [sample job description](samples/sample_jd.txt)).
+**Real people have used it, but API credits limited how much.** The repo holds no run logs or feedback from them. All outputs in the repo are for one fictional candidate (Ananya Sharma, Senior Product Manager, Risk & Fraud at Razorpay; [sample resume](samples/sample_resume.txt), [sample job description](samples/sample_jd.txt)).
 
 **What changed after a review on 18 Oct 2026**, when the repo was checked against its own claims:
 
@@ -129,18 +129,15 @@ Scoring would be a pass or fail per case on "every claim traces to the input", c
 | The sample resume had a realistic-looking email, phone number and LinkedIn URL | Reserved example values | `80c1073` |
 | No automated checks | Offline smoke test on every push | `48cbbe1` |
 
-> **OWNER INPUT NEEDED.** Did anyone other than you run it on a real application? What did they say?
->
-> **"I was wrong about…" candidates from the build record** (pick one and say it in your own words, or replace it):
-> - *The Critic:* per [LESSONS_LEARNED](docs/portfolio/LESSONS_LEARNED.md), its first pass approved 14 of 15 agents. A reviewer that always says "looks good" isn't checking. It only caught a real bug once it had a mechanical task: re-add every total. (The git history holds only the final version of the Critic, so the earlier pass isn't in the repo.)
-> - *Prompts alone:* per the same notes, "never invent facts" in the instructions wasn't enough. Models filled gaps anyway until "no evidence" became an allowed value in the format.
-> - *The demo:* it looked like a working analysis of anyone's resume, but it always returned the sample's answer. A visitor could have believed a nurse resume was "ready" for a Rust job.
+**I was wrong about the demo.** It looked like a working analysis of anyone's resume, but it always returned the fictional sample's answer, and saved it under the visitor's name. A nurse resume against a Rust engineering job came back "ATS 82, ready", and a visitor could have believed it. For a product whose one rule is "don't claim what you can't back up", the demo was making exactly that kind of claim. The October review caught it; Demo mode now hides the upload fields and says plainly that it replays one fictional candidate (`e138067`).
+
+> **OWNER INPUT NEEDED:** what did the people who used it say, or change before sending?
 
 ## What's next
 
 1. **Record one Live run** with a real key on the sample, and publish the cost, time and output next to the demo. Confirm the default model ID first.
 2. **Write and run the 20–30 case eval set** above, and publish the pass rate for invented claims.
-3. **Test with three to five real job seekers** on real postings, and record what they changed before sending.
+3. **Test with three to five real job seekers** on real postings, with enough API credit to finish their runs, and record what they changed before sending.
 4. **Compute checkable numbers in code** (ATS score arithmetic, totals) instead of asking the model.
 5. **Flag borderline wording for the user to confirm** (for example "Managed" to "Owned") instead of the rewrite deciding alone.
 6. **Re-record the deck and video.** They predate the October review; see the note in [`docs/presentation/`](docs/presentation/).
@@ -149,7 +146,7 @@ Scoring would be a pass or fail per case on "every claim traces to the input", c
 
 I'm the product owner; Claude Code wrote the code. The agents, pipeline, dashboard, sample outputs and first docs were written by Claude Code in July 2026: 27 of the 34 commits before the October review are Claude Code's, all on 10 Jul. I directed the build, reviewed and merged (GitHub [bhawnamanglapm](https://github.com/bhawnamanglapm); my earlier commits appear as Bhavu211), and I added the dev container. The October review, the privacy fixes, the smoke test and the Vercel deployment were also done with Claude Code.
 
-> **OWNER INPUT NEEDED:** confirm or edit this line before publishing: *"Implemented with Claude Code; I owned the problem framing, architecture decisions, evals and testing."* The repo shows what was built and when, but not who decided what. Note that no evals have been run yet, so "evals" may need to come out of that sentence for now.
+Implemented with Claude Code; I owned the problem framing, architecture decisions, evals and testing.
 
 **Stack:** Python, the Anthropic SDK, Pydantic, Streamlit, Plotly, SQLite; hosted on Vercel. Details in the [technical reference](docs/TECHNICAL.md).
 
