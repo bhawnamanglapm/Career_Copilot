@@ -11,6 +11,7 @@
 | **What it is** | A working prototype: a Python multi-agent pipeline with a Streamlit dashboard. |
 | **Try it** | **[career-copilot-gold-six.vercel.app](https://career-copilot-gold-six.vercel.app)**: Demo mode, no sign-up. It replays the fictional sample and saves nothing about you. |
 | **Status** | Demo mode runs end to end without an API key. Live mode, which calls Anthropic's API with your own key, exists in the code but has **no recorded runs** in this repository. |
+| **Sample outputs** | The 18 saved outputs that Demo mode replays were written during the July build by following each agent's prompt, not produced by the pipeline calling the API. Each sample file says how it was made. |
 | **Not yet shown** | Accuracy on real resumes, time saved, or any user testing. |
 | **Product owner** | Bhawna Mangla. Built with AI (Claude Code). |
 | **More** | [PRD and status](docs/PRD.md) · [Decision log](docs/decisions.md) · [Changelog](CHANGELOG.md) · [Technical reference](docs/TECHNICAL.md) · [Lessons learned](docs/portfolio/LESSONS_LEARNED.md) |
@@ -77,13 +78,13 @@ Full log with dates and sources: [docs/decisions.md](docs/decisions.md).
 
 The smoke test proves the plumbing: formats, run order, privacy. **It does not test whether the advice is any good.**
 
-**The Critic's review of the sample run.** The Critic agent read all 15 specialist outputs for the fictional candidate and re-added every number it could check:
+**The Critic's review of the samples.** Like the other samples, this review was written during the build by following the Critic agent's prompt; the Critic's code has not been run against the API. It read all 15 specialist samples for the fictional candidate and re-added every number it could check:
 
 <img src="docs/portfolio/screenshots/critic.png" alt="Critic agent report: overall 91/100, 1 major issue, the learning plan's stated total does not match its line items" width="560">
 
-- **It found one real bug.** The learning-plan agent said "~45–55 hours" in total, but its own four line items add up to 30–44 hours. The sample was fixed after the review ([critic output](outputs/critic_sample_output.md)).
+- **It found one real bug.** The learning-plan sample said "~45–55 hours" in total, but its own four line items add up to 30–44 hours. This shows the review method works (re-add every total), not how the Critic agent behaves in a live run. The sample was fixed after the review ([critic output](outputs/critic_sample_output.md)).
 - Other re-added numbers matched: the ATS score (100 − 8 − 6 − 4 = 82), gap counts, evidence counts, a placeholder count and a 300-character limit.
-- Its other ratings, such as 91/100 overall and "hallucination risk: low", are **one AI model's judgement of another's work** on one sample. They are not accuracy measurements.
+- Its other ratings, such as 91/100 overall and "hallucination risk: low", are **an AI's judgement of AI-written samples** for one candidate. They are not accuracy measurements.
 
 **What is not measured:** the quality of the output on real resumes. An evaluation harness exists ([`career_copilot/evals/`](career_copilot/evals/)). It runs test cases through an agent and has a second model score each one for accuracy and invented facts. It has **no test cases written and no results**, and running it needs an API key. That is why this repo has no `evals/` folder yet.
 
@@ -103,8 +104,8 @@ Scoring would be a pass or fail per case on "every claim traces to the input", c
 | What can go wrong | Guardrail | Proven by |
 |---|---|---|
 | An agent invents an achievement, metric or credential | Instructions forbid it; "no evidence" is a valid output; the Critic checks for it | Only on the one sample. Not measured on real resumes. **This is the main open risk.** |
-| A rewrite inflates scope ("Managed" becomes "Owned") | The Resume Rewrite agent is told to keep facts; the Critic looks for inflated verbs | The Critic flagged exactly this in the sample's "Startup" version as a minor issue |
-| A stated total doesn't match its own parts | The Critic re-adds the numbers | Caught the learning-plan bug in the sample |
+| A rewrite inflates scope ("Managed" becomes "Owned") | The Resume Rewrite agent is told to keep facts; the Critic looks for inflated verbs | The Critic review of the samples flagged exactly this in the "Startup" version as a minor issue |
+| A stated total doesn't match its own parts | The Critic re-adds the numbers | The Critic review of the samples caught the learning-plan bug. Not shown in a live run. |
 | Company facts are out of date or wrong | Web search first; sourced facts kept separate from assumptions | The sample cites public news about Razorpay; those sources were not re-checked |
 | An agent's reply isn't in the expected format | Rejected by its schema | Smoke test: 18 of 18 samples match |
 | The Planner names an agent or dependency that doesn't exist | Run order comes from the shared registry; an unknown name stops the run with an error rather than being guessed at | The Planner's sample plan was checked against the registry when it was built (`422fde5`) |
@@ -146,7 +147,7 @@ Scoring would be a pass or fail per case on "every claim traces to the input", c
 
 ## How I built it
 
-Product owner, built with AI (Claude). The agents, pipeline, dashboard, sample outputs and first docs were written by Claude Code in July 2026, almost all on 10 Jul (27 of 34 commits up to the October review), with Bhawna Mangla (GitHub [bhawnamanglapm](https://github.com/bhawnamanglapm); earlier commits appear as Bhavu211) directing the build, reviewing and merging. She added the dev container. The October review, the privacy fixes, the smoke test and the Vercel deployment were also done with Claude Code.
+I'm the product owner; Claude Code wrote the code. The agents, pipeline, dashboard, sample outputs and first docs were written by Claude Code in July 2026: 27 of the 34 commits before the October review are Claude Code's, all on 10 Jul. I directed the build, reviewed and merged (GitHub [bhawnamanglapm](https://github.com/bhawnamanglapm); my earlier commits appear as Bhavu211), and I added the dev container. The October review, the privacy fixes, the smoke test and the Vercel deployment were also done with Claude Code.
 
 > **OWNER INPUT NEEDED:** confirm or edit this line before publishing: *"Implemented with Claude Code; I owned the problem framing, architecture decisions, evals and testing."* The repo shows what was built and when, but not who decided what. Note that no evals have been run yet, so "evals" may need to come out of that sentence for now.
 

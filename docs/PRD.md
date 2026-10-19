@@ -17,11 +17,11 @@ they stand; people studying multi-agent design. **No users are recorded.**
 
 | ID | Requirement (short) | Status | Evidence |
 |---|---|---|---|
-| FR1 | Gap analysis, ATS score and at least one tailored resume for a resume and posting | **Built.** Shown on one fictional sample. | `outputs/gap_analysis_*`, `ats_optimization_*`, `resume_rewrite_*` |
+| FR1 | Gap analysis, ATS score and at least one tailored resume for a resume and posting | **Built.** Shown on one fictional sample. Like all 18 samples, it was written during the build by following the agents' prompts, not produced by the pipeline calling the API. | `outputs/gap_analysis_*`, `ats_optimization_*`, `resume_rewrite_*` |
 | FR2 | Company-specific content grounded in live, cited research, never invented | **Built** (search, then a separate structuring call). The sample cites public news about Razorpay; the sources were not re-checked. The commit that added it (`6c24520`) says the sample came from a real run; no run log confirms it. | `career_copilot/agents/company_intelligence.py` |
 | FR3 | Every agent's output validates against a declared schema | **Built and tested.** | Smoke test: 18 of 18 samples match, in CI |
 | FR4 | Can say "insufficient evidence" or leave a field empty instead of inventing | **Built** into the schemas. Seen in the sample: Interview Coach gives no story for the mentoring question and notes that the resume has no example. Not measured. | Agent schemas; `outputs/interview_coach_*` |
-| FR5 | A review layer catches inconsistencies before a deliverable counts as ready | **Built.** Caught one real bug in the sample: a learning-plan total that didn't match its own line items. | `outputs/critic_sample_output.md` |
+| FR5 | A review layer catches inconsistencies before a deliverable counts as ready | **Built**, not run against the API. A review of the samples written by following the Critic's prompt caught one real bug: a learning-plan total that didn't match its own line items. | `outputs/critic_sample_output.md` |
 
 ## Non-functional requirements
 
