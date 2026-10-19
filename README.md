@@ -34,8 +34,6 @@ Career Copilot is built around the opposite rule: **every claim must trace back 
 
 **Intended users** (from the [full PRD](docs/product/PRD.md)): job seekers applying to specific roles; career changers who want an honest read on where they stand.
 
-> **OWNER INPUT NEEDED:** what made you build this? For example, your own job search, or watching others use ChatGPT for applications. The repo records no user research. If there was none, say so.
-
 ## Why AI, and why not just rules
 
 The repo does not record whether a rules-based tool was tried first. This is how the work is split between the model and plain code:
@@ -97,8 +95,6 @@ The smoke test proves the plumbing: formats, run order, privacy. **It does not t
 
 Scoring would be a pass or fail per case on "every claim traces to the input", checked by a person, with the model judge's score alongside so the two can be compared. **Target: zero invented claims.**
 
-> **OWNER INPUT NEEDED:** run the cases with your own API key (I don't handle keys), or confirm the plan so the cases can be written for you to run.
-
 ## Failure modes and guardrails
 
 | What can go wrong | Guardrail | Proven by |
@@ -130,8 +126,6 @@ Scoring would be a pass or fail per case on "every claim traces to the input", c
 | No automated checks | Offline smoke test on every push | `48cbbe1` |
 
 **I was wrong about the demo.** It looked like a working analysis of anyone's resume, but it always returned the fictional sample's answer, and saved it under the visitor's name. A nurse resume against a Rust engineering job came back "ATS 82, ready", and a visitor could have believed it. For a product whose one rule is "don't claim what you can't back up", the demo was making exactly that kind of claim. The October review caught it; Demo mode now hides the upload fields and says plainly that it replays one fictional candidate (`e138067`).
-
-> **OWNER INPUT NEEDED:** what did the people who used it say, or change before sending?
 
 ## What's next
 

@@ -1,6 +1,6 @@
 # Decision log
 
-> **Draft for the owner to edit.** Each date is the commit date when the decision first appears in this repository.
+> Each date is the commit date when the decision first appears in this repository.
 > The reasons come from commit messages, [LESSONS_LEARNED](portfolio/LESSONS_LEARNED.md), the
 > [full PRD](product/PRD.md) and [RISKS](product/RISKS.md). Where a rejected alternative is not recorded anywhere, the
 > entry says so instead of guessing.
@@ -29,6 +29,3 @@
 | 2026-10-18 | **Offline smoke test on every push.** | Keep the formats, run order and privacy honest without a key. | It does not judge the quality of live output. | `48cbbe1` |
 | 2026-10-18 | **Host the demo on Vercel, Demo mode only.** | A link anyone can open, with no key on the server. | Live runs could be cut off at the 5-minute limit on the free plan; downloads are packed into their links because Vercel may send requests to a different server. | `bb34e9d`, `2a9d4cc`, `ed1f9f8`, `f4bcff6` |
 | 2026-10-19 | **No `evals/` folder until real cases have been run; publish a proposed case set instead.** | Results must come from runs, not estimates. | Quality claims wait for the first run. | This change |
-
-> **OWNER INPUT NEEDED:** add decisions made outside the code, such as why job applications, why a multi-agent
-> design rather than one long prompt, why Razorpay as the sample, and anything you tried and dropped.

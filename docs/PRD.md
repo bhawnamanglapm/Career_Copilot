@@ -1,6 +1,6 @@
 # Career Copilot PRD: where the prototype stands
 
-> **Draft for the owner to edit.** The full PRD is [docs/product/PRD.md](product/PRD.md). It was written on 10 Jul 2026,
+> The full PRD is [docs/product/PRD.md](product/PRD.md). It was written on 10 Jul 2026,
 > during the build. This page checks each of its requirements against the code and the sample outputs, as of
 > 19 Oct 2026. It adds no new requirements. **No success metric in the PRD has been measured.**
 
@@ -59,6 +59,4 @@ gives a baseline.
 
 From the PRD, still open:
 1. Should the system ever send anything on the user's behalf? Current design: no, it only drafts.
-2. Should there be a "should you even apply?" check before the full pipeline runs on a clear mismatch?
-
-> **OWNER INPUT NEEDED:** your answers, and anything you'd add after the October review.
+2. Should there be a "should you even apply?" check before the full pipeline runs on a clear mismatch? Not decided.
