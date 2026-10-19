@@ -28,7 +28,9 @@
 
 **Mitigation in place:** Planner Agent estimates execution cost/complexity upfront and can skip agents not relevant to the user's stated intent.
 
-**Residual risk:** no hard budget cap or cost-tracking exists yet (planned for Phase 7/v0.2).
+**Mitigation added 10 Jul 2026:** an optional hard spend cap (`LIVE_MODE_COST_LIMIT_USD`) stops a Live run as soon as its estimated cost reaches the limit, and an optional passcode (`LIVE_MODE_PASSCODE`) locks Live mode on a shared server.
+
+**Residual risk:** the cap uses estimated cost from token counts and has not been exercised against the real API. There are no recorded Live runs, so the real cost of a full run is unknown.
 
 ## Single point of failure in orchestration
 
